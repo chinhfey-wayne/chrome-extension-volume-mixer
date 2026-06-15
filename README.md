@@ -40,8 +40,8 @@ Adjust, mute, boost, or pause audio on any tab — YouTube, Spotify Web, Twitch,
     <td><img src="assets/demo2.png" alt="Volume Controller on YouTube — multiple tabs" width="100%"></td>
   </tr>
   <tr>
-    <td align="center"><em>Single tab — full control</em></td>
     <td align="center"><em>Multiple tabs — independent sliders</em></td>
+    <td align="center"><em>Single tab — full control</em></td>
   </tr>
 </table>
 

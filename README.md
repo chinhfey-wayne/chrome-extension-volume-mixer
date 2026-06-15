@@ -82,12 +82,14 @@ Or [Download ZIP →](https://github.com/ChinhFey/chrome-extension-volume-mixer/
 
 1. Open Chrome and go to `chrome://extensions`
 2. Toggle **Developer mode** ON (top right corner)
+3. Click **Load unpacked**
+
+<img src="assets/install-step.png" alt="chrome://extensions — Enable Developer Mode and click Load unpacked" width="100%">
 
 ### Step 3 — Load the Extension
 
-1. Click **Load unpacked**
-2. Select the `chrome-extension-volume-mixer` folder
-3. The **Volume Controller** icon appears in your toolbar
+1. Select the `chrome-extension-volume-mixer` folder
+2. The **Volume Controller** icon appears in your toolbar
 
 ### Step 4 — Use It
 

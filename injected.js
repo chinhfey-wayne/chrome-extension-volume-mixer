@@ -2,6 +2,7 @@
 (function () {
   let volume = 1.0;
   const gainNodes = [];
+  window.__vmGains = gainNodes; // exposed so background executeScript can reach it
 
   // --- AudioContext intercept ---
   const OrigCtx = window.AudioContext || window.webkitAudioContext;
@@ -63,8 +64,9 @@
   }
 
   window.addEventListener('message', e => {
-    if (e.source === window && e.data && e.data.__vm__) {
-      applyVolume(e.data.volume);
-    }
+    if (!e.data || !e.data.__vm__ || e.source !== window) return;
+    if (e.data.action === 'setVolume') applyVolume(e.data.volume);
+    if (e.data.action === 'pause') document.querySelectorAll('audio, video').forEach(el => el.pause());
+    if (e.data.action === 'play')  document.querySelectorAll('audio, video').forEach(el => el.play().catch(() => {}));
   });
 })();

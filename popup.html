@@ -7,111 +7,95 @@
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <div class="bg-blob blob-1"></div>
-  <div class="bg-blob blob-2"></div>
+  <div class="popup-shell">
 
-  <main class="widget">
-    <div class="reflection"></div>
+    <main class="widget">
+      <div class="reflection"></div>
 
-    <!-- Header -->
-    <header class="top-bar">
-      <div class="brand">
-        <div class="logo-wrap">
-          <img src="icons/logo.png" alt="LiquidMixer" class="logo-img">
-        </div>
-        <span class="brand-name">LiquidMixer</span>
-      </div>
-      <div class="header-actions">
-        <button class="icon-btn" id="toggleAllBtn" title="Show all tabs">
-          <span class="material-symbols-outlined">tab</span>
-        </button>
-        <button class="icon-btn" title="Help">
-          <span class="material-symbols-outlined">help</span>
-        </button>
-        <button class="icon-btn" title="Settings">
-          <span class="material-symbols-outlined">settings</span>
-        </button>
-      </div>
-    </header>
-
-    <!-- Scrollable content -->
-    <div class="content">
-
-      <!-- Global Output -->
-      <section class="global-card glass-card">
-        <div class="global-header">
-          <div class="global-title-row">
-            <span class="section-label">GLOBAL OUTPUT</span>
-            <span class="all-tabs-badge">ALL TABS</span>
+      <!-- Header -->
+      <header class="top-bar">
+        <div class="brand">
+          <div class="logo-wrap">
+            <img src="icons/logo.png" alt="Volume Control" class="logo-img">
           </div>
-          <span class="vol-display" id="globalVolLabel">100%</span>
+          <span class="brand-name">Volume Control</span>
         </div>
+        <div class="header-actions">
+          <button class="icon-btn" id="toggleAllBtn" title="Toggle all tabs">
+            <span class="material-symbols-outlined">tab</span>
+          </button>
+          <button class="icon-btn" title="Help">
+            <span class="material-symbols-outlined">help</span>
+          </button>
+          <button class="icon-btn" title="Settings">
+            <span class="material-symbols-outlined">settings</span>
+          </button>
+        </div>
+      </header>
 
-        <div class="slider-row">
-          <div class="slider-track" id="globalTrack">
-            <div class="slider-fill" id="globalFill" style="width:66.7%"></div>
-            <div class="slider-thumb" id="globalThumb" style="left:66.7%"></div>
-            <input type="range" class="range-input" id="globalSlider" min="0" max="150" value="100">
+      <!-- Scrollable content -->
+      <div class="content">
+
+        <!-- Global Output -->
+        <section class="global-card glass-card">
+          <div class="global-header">
+            <div class="global-title-row">
+              <span class="label-caps">GLOBAL OUTPUT</span>
+              <span class="all-tabs-badge">ALL TABS</span>
+            </div>
+            <span class="vol-display" id="globalVolLabel">100%</span>
           </div>
-        </div>
 
-        <div class="global-footer">
-          <button class="action-btn" id="boostAllBtn">
-            <span class="material-symbols-outlined">graphic_eq</span>
-            <span class="action-label">Auto-Boost</span>
-          </button>
-          <button class="action-btn" id="resetAllBtn">
-            <span class="material-symbols-outlined">restart_alt</span>
-            <span class="action-label">Reset All</span>
-          </button>
-          <button class="action-btn" id="muteAllBtn">
-            <span class="material-symbols-outlined">volume_off</span>
-            <span class="action-label">Mute All</span>
-          </button>
-          <button class="action-btn" id="refreshBtn">
-            <span class="material-symbols-outlined">refresh</span>
-            <span class="action-label">Refresh</span>
-          </button>
-        </div>
-      </section>
+          <div class="slider-row">
+            <div class="slider-track">
+              <div class="slider-fill" id="globalFill" style="transform:scaleX(0.667)"></div>
+              <div class="slider-thumb" id="globalThumb" style="left:64%"></div>
+              <input type="range" class="range-input" id="globalSlider" min="0" max="150" value="100">
+            </div>
+          </div>
 
-      <!-- Sources -->
-      <section class="sources-section">
-        <div class="section-header">
-          <span class="material-symbols-outlined section-icon">tab</span>
-          <h3 class="section-label">ACTIVE AUDIO SOURCES</h3>
-          <span class="source-count" id="sourceCount">0 TABS</span>
-        </div>
-        <div id="tabs-list"></div>
-        <div id="empty" class="empty-state">
-          No tabs playing audio.<br>
-          Tap <strong>tab</strong> above to show all tabs.
-        </div>
-      </section>
+          <div class="global-footer">
+            <button class="action-btn" id="boostAllBtn">
+              <span class="material-symbols-outlined">graphic_eq</span>
+              <span class="action-label">Auto-Boost</span>
+            </button>
+            <button class="action-btn" id="resetAllBtn">
+              <span class="material-symbols-outlined">restart_alt</span>
+              <span class="action-label">Reset All</span>
+            </button>
+            <button class="action-btn" id="muteAllBtn">
+              <span class="material-symbols-outlined">volume_off</span>
+              <span class="action-label">Mute All</span>
+            </button>
+            <button class="action-btn" id="refreshBtn">
+              <span class="material-symbols-outlined">refresh</span>
+              <span class="action-label">Refresh</span>
+            </button>
+          </div>
+        </section>
 
-    </div>
+        <!-- Sources -->
+        <section class="sources-section">
+          <div class="section-header">
+            <span class="material-symbols-outlined section-icon">tab</span>
+            <h3 class="label-caps">ACTIVE AUDIO SOURCES</h3>
+            <span class="source-count" id="sourceCount">0 TABS</span>
+            <button class="add-tab-btn" id="addTabBtn" title="Add tab back">
+              <span class="material-symbols-outlined">add</span>
+            </button>
+          </div>
+          <div class="add-tab-menu hidden" id="addTabMenu"></div>
+          <div id="tabs-list" class="tabs-list"></div>
+          <div id="empty" class="empty-state">
+            No tabs playing audio.<br>
+            Tap <strong>tab</strong> icon above to show all tabs.
+          </div>
+        </section>
 
-    <!-- Bottom nav -->
-    <nav class="bottom-nav">
-      <button class="nav-btn active" id="mixerNavBtn">
-        <span class="material-symbols-outlined">home</span>
-        <span>Home</span>
-      </button>
-      <button class="nav-btn">
-        <span class="material-symbols-outlined">equalizer</span>
-        <span>Equalizer</span>
-      </button>
-      <button class="nav-btn" id="showAllNavBtn">
-        <span class="material-symbols-outlined">tune</span>
-        <span>All Tabs</span>
-      </button>
-      <button class="nav-btn">
-        <span class="material-symbols-outlined">settings</span>
-        <span>Settings</span>
-      </button>
-    </nav>
-  </main>
+      </div>
+    </main>
 
+  </div>
   <script src="popup.js"></script>
 </body>
 </html>

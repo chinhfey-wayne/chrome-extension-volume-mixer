@@ -1,9 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "Volume Mixer",
+  "name": "Volume Control",
   "version": "1.0.0",
   "description": "Per-tab volume control — mute, duck, or boost any tab",
-  "permissions": ["tabs", "storage"],
+  "permissions": ["tabs", "storage", "scripting"],
+  "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
   },
@@ -13,7 +14,7 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "LiquidMixer",
+    "default_title": "Volume Control",
     "default_icon": {
       "48": "icons/logo.png",
       "128": "icons/logo.png"

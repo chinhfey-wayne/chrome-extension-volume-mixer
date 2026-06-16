@@ -44,6 +44,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'setTabVolume') {
     const { tabId, volume } = msg;
     chrome.storage.session.set({ [`vol_${tabId}`]: volume }, () => {
+      // Native browser mute when vol=0 — survives app switches, page reloads, window focus changes
+      chrome.tabs.update(tabId, { muted: volume === 0 }, () => { void chrome.runtime.lastError; });
       execInTab(tabId, setVolumeInPage, [volume]);
       sendResponse({ ok: true });
     });
@@ -78,6 +80,10 @@ function reapplyVolume(tabId) {
   chrome.storage.session.get(`vol_${tabId}`, result => {
     const vol = result[`vol_${tabId}`];
     if (vol !== undefined) {
+      // Re-enforce native mute if stored vol is 0 (Chrome may reset it on navigation)
+      if (vol === 0) {
+        chrome.tabs.update(tabId, { muted: true }, () => { void chrome.runtime.lastError; });
+      }
       execInTab(tabId, setVolumeInPage, [vol]);
     }
   });

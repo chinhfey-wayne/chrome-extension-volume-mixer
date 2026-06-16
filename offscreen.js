@@ -7,6 +7,7 @@
 // So volume never drifts and there is no enforcement loop to throttle.
 
 const captures = new Map(); // tabId -> { stream, ctx, source, gain }
+const starting = new Map(); // tabId -> Promise (in-flight startOrUpdate, prevents dup streams)
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.target !== 'offscreen') return;
@@ -43,7 +44,16 @@ async function startOrUpdate(tabId, streamId, volume) {
     existing.gain.gain.value = volume;
     return;
   }
+  // A start is already in flight for this tab (rapid slider drag) — wait for it,
+  // then just set the gain. Prevents creating duplicate streams/contexts.
+  if (starting.has(tabId)) {
+    await starting.get(tabId);
+    const cap = captures.get(tabId);
+    if (cap) cap.gain.gain.value = volume;
+    return;
+  }
 
+  const job = (async () => {
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: {
       mandatory: {
@@ -67,6 +77,10 @@ async function startOrUpdate(tabId, streamId, volume) {
   });
 
   captures.set(tabId, { stream, ctx, source, gain });
+  })();
+
+  starting.set(tabId, job);
+  try { await job; } finally { starting.delete(tabId); }
 }
 
 function stop(tabId) {

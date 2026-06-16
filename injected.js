@@ -94,22 +94,6 @@
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
 
-  // Continuous enforcement — corrects any drift every 500ms regardless of site code
-  setInterval(() => {
-    if (volume === 1.0) return;
-    gainNodes.forEach(g => {
-      try { if (Math.abs(g.gain.value - volume) > 0.001) g.gain.value = volume; } catch (_) {}
-    });
-    document.querySelectorAll('audio, video').forEach(el => {
-      const expected = clamp((el._reqVol ?? 1.0) * volume);
-      try {
-        if (Math.abs(origVolDesc.get.call(el) - expected) > 0.01) {
-          origVolDesc.set.call(el, expected);
-        }
-      } catch (_) {}
-    });
-  }, 500);
-
   window.addEventListener('message', e => {
     if (!e.data || !e.data.__vm__ || e.source !== window) return;
     if (e.data.action === 'setVolume') applyVolume(e.data.volume);

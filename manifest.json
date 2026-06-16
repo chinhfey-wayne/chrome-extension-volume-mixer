@@ -3,7 +3,7 @@
   "name": "Volume Control",
   "version": "1.0.0",
   "description": "Per-tab volume control — mute, duck, or boost any tab",
-  "permissions": ["tabs", "storage", "scripting"],
+  "permissions": ["tabs", "storage", "scripting", "alarms"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"

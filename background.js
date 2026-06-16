@@ -90,7 +90,7 @@ function reapplyVolume(tabId) {
 }
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-  if (changeInfo.status === 'complete' || changeInfo.audible !== undefined) {
+  if (changeInfo.status === 'loading' || changeInfo.status === 'complete' || changeInfo.audible !== undefined) {
     reapplyVolume(tabId);
   }
 
@@ -130,4 +130,22 @@ chrome.windows.onFocusChanged.addListener(windowId => {
 
 chrome.tabs.onRemoved.addListener(tabId => {
   chrome.storage.session.remove(`vol_${tabId}`);
+});
+
+// Alarm-based enforcement — fires every 30s from the service worker (not throttled,
+// unlike setInterval inside a background tab's page JS which Chrome freezes)
+chrome.alarms.create('vmEnforce', { periodInMinutes: 0.5 });
+chrome.alarms.onAlarm.addListener(alarm => {
+  if (alarm.name !== 'vmEnforce') return;
+  chrome.storage.session.get(null, items => {
+    for (const [k, v] of Object.entries(items)) {
+      if (!k.startsWith('vol_')) continue;
+      const tabId = parseInt(k.slice(4));
+      if (isNaN(tabId)) continue;
+      if (v === 0) {
+        chrome.tabs.update(tabId, { muted: true }, () => { void chrome.runtime.lastError; });
+      }
+      execInTab(tabId, setVolumeInPage, [v]);
+    }
+  });
 });

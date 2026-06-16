@@ -88,6 +88,11 @@ function visibleTabs() {
   });
 }
 
+// Direct native mute — no background roundtrip, no service-worker wakeup delay
+function nativeMute(tabId, muted) {
+  chrome.tabs.update(tabId, { muted }, () => { void chrome.runtime.lastError; });
+}
+
 // ── Global Output ──
 function onGlobalSlider(e) {
   const pct = parseInt(e.target.value);
@@ -102,6 +107,7 @@ function onGlobalSlider(e) {
     input.value = pct;
     if (vol > 0) input.dataset.prevVol = pct;
     syncSliderUI(card, pct);
+    nativeMute(tabId, vol === 0);
     chrome.runtime.sendMessage({ type: 'setTabVolume', tabId, volume: vol });
   });
 }
@@ -260,6 +266,7 @@ function onStepBtn(e) {
   if (vol > 0) input.dataset.prevVol = newPct;
   syncSliderUI(card, newPct);
   volumes[tabId] = vol;
+  nativeMute(tabId, vol === 0);
   chrome.runtime.sendMessage({ type: 'setTabVolume', tabId, volume: vol });
 }
 
@@ -279,6 +286,7 @@ function onSlider(e) {
   syncSliderUI(card, pct);
   if (vol > 0) input.dataset.prevVol = pct;
   volumes[tabId] = vol;
+  nativeMute(tabId, vol === 0);
   chrome.runtime.sendMessage({ type: 'setTabVolume', tabId, volume: vol });
 }
 
@@ -298,6 +306,7 @@ function onMute(e) {
   input.value = newPct;
   syncSliderUI(card, newPct);
   volumes[tabId] = newVol;
+  nativeMute(tabId, newVol === 0);
   chrome.runtime.sendMessage({ type: 'setTabVolume', tabId, volume: newVol });
 }
 
@@ -379,6 +388,7 @@ function onMenuAction(e) {
 function onMuteAll() {
   visibleTabs().forEach(tab => {
     volumes[tab.id] = 0;
+    nativeMute(tab.id, true);
     chrome.runtime.sendMessage({ type: 'setTabVolume', tabId: tab.id, volume: 0 });
   });
   render();
@@ -387,6 +397,7 @@ function onMuteAll() {
 function onBoostAll() {
   visibleTabs().forEach(tab => {
     volumes[tab.id] = 1.5;
+    nativeMute(tab.id, false);
     chrome.runtime.sendMessage({ type: 'setTabVolume', tabId: tab.id, volume: 1.5 });
   });
   render();
@@ -395,6 +406,7 @@ function onBoostAll() {
 function onResetAll() {
   visibleTabs().forEach(tab => {
     volumes[tab.id] = 1.0;
+    nativeMute(tab.id, false);
     chrome.runtime.sendMessage({ type: 'setTabVolume', tabId: tab.id, volume: 1.0 });
   });
   const slider = document.getElementById('globalSlider');

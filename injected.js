@@ -1,6 +1,8 @@
 // Runs in MAIN (page) world — overrides AudioContext and HTMLMediaElement
 (function () {
-  let volume = 1.0;
+  let volume = (() => {
+    try { return parseFloat(sessionStorage.getItem('__vmVol') || '1') || 1.0; } catch (_) { return 1.0; }
+  })();
   const gainNodes = [];
   window.__vmGains = gainNodes; // exposed so background executeScript can reach it
 
@@ -63,6 +65,7 @@
 
   function applyVolume(v) {
     volume = v;
+    try { sessionStorage.setItem('__vmVol', String(v)); } catch (_) {}
     gainNodes.forEach(g => {
       try { g.gain.value = v; } catch (_) {}
     });

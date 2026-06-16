@@ -95,6 +95,15 @@ chrome.tabs.onActivated.addListener(({ tabId }) => {
   reapplyVolume(tabId);
 });
 
+// Re-apply when the Chrome window regains focus (e.g. switching between profiles)
+// onActivated does NOT fire when switching windows — only onFocusChanged does
+chrome.windows.onFocusChanged.addListener(windowId => {
+  if (windowId === chrome.windows.WINDOW_ID_NONE) return;
+  chrome.tabs.query({ active: true, windowId }, tabs => {
+    if (tabs[0]) reapplyVolume(tabs[0].id);
+  });
+});
+
 chrome.tabs.onRemoved.addListener(tabId => {
   chrome.storage.session.remove(`vol_${tabId}`);
 });

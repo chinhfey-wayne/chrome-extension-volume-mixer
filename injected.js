@@ -77,6 +77,39 @@
 
   window.__vmApply = applyVolume;
 
+  // Watch for new audio/video elements added to DOM — apply volume immediately
+  const observer = new MutationObserver(mutations => {
+    if (volume === 1.0) return;
+    for (const mutation of mutations) {
+      for (const node of mutation.addedNodes) {
+        if (node.nodeType !== 1) continue;
+        const els = [];
+        if (node.matches && node.matches('audio, video')) els.push(node);
+        node.querySelectorAll && node.querySelectorAll('audio, video').forEach(el => els.push(el));
+        els.forEach(el => {
+          origVolDesc.set.call(el, clamp((el._reqVol ?? 1.0) * volume));
+        });
+      }
+    }
+  });
+  observer.observe(document.documentElement, { childList: true, subtree: true });
+
+  // Continuous enforcement — corrects any drift every 500ms regardless of site code
+  setInterval(() => {
+    if (volume === 1.0) return;
+    gainNodes.forEach(g => {
+      try { if (Math.abs(g.gain.value - volume) > 0.001) g.gain.value = volume; } catch (_) {}
+    });
+    document.querySelectorAll('audio, video').forEach(el => {
+      const expected = clamp((el._reqVol ?? 1.0) * volume);
+      try {
+        if (Math.abs(origVolDesc.get.call(el) - expected) > 0.01) {
+          origVolDesc.set.call(el, expected);
+        }
+      } catch (_) {}
+    });
+  }, 500);
+
   window.addEventListener('message', e => {
     if (!e.data || !e.data.__vm__ || e.source !== window) return;
     if (e.data.action === 'setVolume') applyVolume(e.data.volume);

@@ -133,8 +133,13 @@ chrome.tabs.onRemoved.addListener(tabId => {
 });
 
 // Alarm-based enforcement — fires every 30s from the service worker (not throttled,
-// unlike setInterval inside a background tab's page JS which Chrome freezes)
-chrome.alarms.create('vmEnforce', { periodInMinutes: 0.5 });
+// unlike setInterval inside a background tab's page JS which Chrome freezes).
+// Use get() before create() — service worker re-runs on EVERY event (message, tab update,
+// focus change, etc.), so a bare create() would cancel+reset the alarm each time, meaning
+// it never actually fires. Only create if no alarm exists yet.
+chrome.alarms.get('vmEnforce', existing => {
+  if (!existing) chrome.alarms.create('vmEnforce', { periodInMinutes: 0.5 });
+});
 chrome.alarms.onAlarm.addListener(alarm => {
   if (alarm.name !== 'vmEnforce') return;
   chrome.storage.session.get(null, items => {

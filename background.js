@@ -89,10 +89,28 @@ function reapplyVolume(tabId) {
   });
 }
 
-// Re-apply when tab finishes loading
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   if (changeInfo.status === 'complete' || changeInfo.audible !== undefined) {
     reapplyVolume(tabId);
+  }
+
+  // Self-heal: if tab becomes audible while it should be muted, hammer it immediately
+  if (changeInfo.audible === true) {
+    chrome.storage.session.get(`vol_${tabId}`, result => {
+      if (result[`vol_${tabId}`] === 0) {
+        chrome.tabs.update(tabId, { muted: true }, () => { void chrome.runtime.lastError; });
+        execInTab(tabId, setVolumeInPage, [0]);
+      }
+    });
+  }
+
+  // Self-heal: if something externally unmutes a tab we muted, re-mute it
+  if (changeInfo.mutedInfo !== undefined && !changeInfo.mutedInfo.muted) {
+    chrome.storage.session.get(`vol_${tabId}`, result => {
+      if (result[`vol_${tabId}`] === 0) {
+        chrome.tabs.update(tabId, { muted: true }, () => { void chrome.runtime.lastError; });
+      }
+    });
   }
 });
 
@@ -101,12 +119,12 @@ chrome.tabs.onActivated.addListener(({ tabId }) => {
   reapplyVolume(tabId);
 });
 
-// Re-apply when the Chrome window regains focus (e.g. switching between profiles)
-// onActivated does NOT fire when switching windows — only onFocusChanged does
+// Re-apply to ALL tabs in the window when it regains focus
+// onActivated does NOT fire on window focus change — only onFocusChanged does
 chrome.windows.onFocusChanged.addListener(windowId => {
   if (windowId === chrome.windows.WINDOW_ID_NONE) return;
-  chrome.tabs.query({ active: true, windowId }, tabs => {
-    if (tabs[0]) reapplyVolume(tabs[0].id);
+  chrome.tabs.query({ windowId }, tabs => {
+    tabs.forEach(tab => reapplyVolume(tab.id));
   });
 });
 

@@ -3,7 +3,7 @@
   "name": "Volume Control",
   "version": "1.0.0",
   "description": "Per-tab volume control — mute, duck, or boost any tab",
-  "permissions": ["tabs", "storage", "scripting", "alarms"],
+  "permissions": ["tabs", "storage", "scripting", "tabCapture", "offscreen"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
@@ -19,20 +19,5 @@
       "48": "icons/logo.png",
       "128": "icons/logo.png"
     }
-  },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["injected.js"],
-      "run_at": "document_start",
-      "world": "MAIN",
-      "all_frames": true
-    },
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
-      "run_at": "document_start",
-      "all_frames": true
-    }
-  ]
+  }
 }

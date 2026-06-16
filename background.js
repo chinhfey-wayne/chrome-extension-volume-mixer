@@ -32,10 +32,25 @@ const playInPage = () => {
   document.querySelectorAll('audio, video').forEach(el => { try { el.play(); } catch (_) {} });
 };
 
+// On startup: remove stale vol_xxx keys for tabs that no longer exist.
+// chrome.storage.local persists across browser restarts; tab IDs do not.
+// Without cleanup, old IDs accumulate and may match new unrelated tabs.
+chrome.tabs.query({}, tabs => {
+  const live = new Set(tabs.map(t => t.id));
+  chrome.storage.local.get(null, items => {
+    const stale = Object.keys(items).filter(k => {
+      if (!k.startsWith('vol_')) return false;
+      const id = parseInt(k.slice(4));
+      return !isNaN(id) && !live.has(id);
+    });
+    if (stale.length) chrome.storage.local.remove(stale);
+  });
+});
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'getVolume') {
     const key = `vol_${sender.tab?.id}`;
-    chrome.storage.session.get(key, result => {
+    chrome.storage.local.get(key, result => {
       sendResponse({ volume: result[key] ?? 1.0 });
     });
     return true;
@@ -43,7 +58,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   if (msg.type === 'setTabVolume') {
     const { tabId, volume } = msg;
-    chrome.storage.session.set({ [`vol_${tabId}`]: volume }, () => {
+    chrome.storage.local.set({ [`vol_${tabId}`]: volume }, () => {
       // Native browser mute when vol=0 — survives app switches, page reloads, window focus changes
       chrome.tabs.update(tabId, { muted: volume === 0 }, () => { void chrome.runtime.lastError; });
       execInTab(tabId, setVolumeInPage, [volume]);
@@ -65,7 +80,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 
   if (msg.type === 'getAllVolumes') {
-    chrome.storage.session.get(null, items => {
+    chrome.storage.local.get(null, items => {
       const volumes = {};
       for (const [k, v] of Object.entries(items)) {
         if (k.startsWith('vol_')) volumes[parseInt(k.slice(4))] = v;
@@ -77,7 +92,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 });
 
 function reapplyVolume(tabId) {
-  chrome.storage.session.get(`vol_${tabId}`, result => {
+  chrome.storage.local.get(`vol_${tabId}`, result => {
     const vol = result[`vol_${tabId}`];
     if (vol !== undefined) {
       // Re-enforce native mute if stored vol is 0 (Chrome may reset it on navigation)
@@ -96,7 +111,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
 
   // Self-heal: if tab becomes audible while it should be muted, hammer it immediately
   if (changeInfo.audible === true) {
-    chrome.storage.session.get(`vol_${tabId}`, result => {
+    chrome.storage.local.get(`vol_${tabId}`, result => {
       if (result[`vol_${tabId}`] === 0) {
         chrome.tabs.update(tabId, { muted: true }, () => { void chrome.runtime.lastError; });
         execInTab(tabId, setVolumeInPage, [0]);
@@ -106,7 +121,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
 
   // Self-heal: if something externally unmutes a tab we muted, re-mute it
   if (changeInfo.mutedInfo !== undefined && !changeInfo.mutedInfo.muted) {
-    chrome.storage.session.get(`vol_${tabId}`, result => {
+    chrome.storage.local.get(`vol_${tabId}`, result => {
       if (result[`vol_${tabId}`] === 0) {
         chrome.tabs.update(tabId, { muted: true }, () => { void chrome.runtime.lastError; });
       }
@@ -129,7 +144,7 @@ chrome.windows.onFocusChanged.addListener(windowId => {
 });
 
 chrome.tabs.onRemoved.addListener(tabId => {
-  chrome.storage.session.remove(`vol_${tabId}`);
+  chrome.storage.local.remove(`vol_${tabId}`);
 });
 
 // Alarm-based enforcement — fires every 30s from the service worker (not throttled,
@@ -142,7 +157,7 @@ chrome.alarms.get('vmEnforce', existing => {
 });
 chrome.alarms.onAlarm.addListener(alarm => {
   if (alarm.name !== 'vmEnforce') return;
-  chrome.storage.session.get(null, items => {
+  chrome.storage.local.get(null, items => {
     for (const [k, v] of Object.entries(items)) {
       if (!k.startsWith('vol_')) continue;
       const tabId = parseInt(k.slice(4));

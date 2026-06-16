@@ -48,6 +48,15 @@
     });
   }
 
+  // Intercept play() so new elements that never had .volume set still respect our volume
+  const origPlay = HTMLMediaElement.prototype.play;
+  HTMLMediaElement.prototype.play = function (...args) {
+    if (this._reqVol === undefined) {
+      origVolDesc.set.call(this, clamp(volume));
+    }
+    return origPlay.apply(this, args);
+  };
+
   function clamp(v) {
     return Math.max(0, Math.min(1, v));
   }
@@ -62,6 +71,8 @@
       origVolDesc.set.call(el, clamp(req * v));
     });
   }
+
+  window.__vmApply = applyVolume;
 
   window.addEventListener('message', e => {
     if (!e.data || !e.data.__vm__ || e.source !== window) return;

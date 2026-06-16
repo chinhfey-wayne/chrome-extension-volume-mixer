@@ -11,13 +11,17 @@ function execInTab(tabId, func, args = []) {
 }
 
 const setVolumeInPage = (vol) => {
+  if (typeof window.__vmApply === 'function') {
+    window.__vmApply(vol);
+    return;
+  }
+  // Fallback if injected.js hasn't run yet (e.g. restricted page)
   if (window.__vmGains) {
     window.__vmGains.forEach(g => { try { g.gain.value = vol; } catch (_) {} });
   }
   document.querySelectorAll('audio, video').forEach(el => {
     try { el.volume = Math.min(1, vol); } catch (_) {}
   });
-  window.__vmVolume = vol;
 };
 
 const pauseInPage = () => {
@@ -70,15 +74,25 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 });
 
-// Re-apply stored volume when a tab finishes loading
-chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-  if (changeInfo.status !== 'complete') return;
+function reapplyVolume(tabId) {
   chrome.storage.session.get(`vol_${tabId}`, result => {
     const vol = result[`vol_${tabId}`];
-    if (vol !== undefined && vol !== 1.0) {
+    if (vol !== undefined) {
       execInTab(tabId, setVolumeInPage, [vol]);
     }
   });
+}
+
+// Re-apply when tab finishes loading
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.status === 'complete' || changeInfo.audible !== undefined) {
+    reapplyVolume(tabId);
+  }
+});
+
+// Re-apply when user switches to a tab — catches already-loaded tabs
+chrome.tabs.onActivated.addListener(({ tabId }) => {
+  reapplyVolume(tabId);
 });
 
 chrome.tabs.onRemoved.addListener(tabId => {

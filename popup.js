@@ -19,6 +19,8 @@ async function init() {
   syncGlobalUI(parseInt(globalSlider.value));
 
   globalSlider.addEventListener('input', onGlobalSlider);
+  document.getElementById('globalStepDown').addEventListener('click', () => onGlobalStep(-5));
+  document.getElementById('globalStepUp').addEventListener('click', () => onGlobalStep(5));
   document.getElementById('muteAllBtn').addEventListener('click', onMuteAll);
   document.getElementById('boostAllBtn').addEventListener('click', onBoostAll);
   document.getElementById('resetAllBtn').addEventListener('click', onResetAll);
@@ -39,7 +41,11 @@ async function init() {
     }
   });
 
-  chrome.tabs.onUpdated.addListener(refreshTabsLive);
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+    if (changeInfo.audible !== undefined || changeInfo.status === 'complete') {
+      refreshTabsLive();
+    }
+  });
   chrome.tabs.onActivated.addListener(refreshTabsLive);
   chrome.tabs.onRemoved.addListener(refreshTabsLive);
 }
@@ -133,6 +139,7 @@ function render() {
   list.querySelectorAll('.pause-btn').forEach(b => b.addEventListener('click', onPause));
   list.querySelectorAll('.more-btn').forEach(b => b.addEventListener('click', onMoreMenu));
   list.querySelectorAll('.menu-item').forEach(b => b.addEventListener('click', onMenuAction));
+  list.querySelectorAll('.vol-step-btn').forEach(b => b.addEventListener('click', onStepBtn));
 }
 
 function makeCard(tab, vol, index = 0) {
@@ -182,13 +189,15 @@ function makeCard(tab, vol, index = 0) {
       </div>
     </div>
     <div class="slider-row">
+      <button class="vol-step-btn" data-dir="-1" data-tab-id="${tab.id}" title="Decrease volume">&#9664;</button>
       <div class="slider-track">
         <div class="slider-fill" style="transform:scaleX(${fillScale})"></div>
         <div class="slider-thumb" style="left:${thumbPct}%"></div>
         <input type="range" class="range-input"
           min="0" max="${MAX_VOL}" value="${pct}"
-          data-tab-id="${tab.id}" data-prev-vol="${pct}">
+          data-tab-id="${tab.id}" data-prev-vol="${vol === 0 ? 100 : pct}">
       </div>
+      <button class="vol-step-btn" data-dir="1" data-tab-id="${tab.id}" title="Increase volume">&#9654;</button>
       <span class="vol-label">${pct}%</span>
     </div>
     <div class="tab-menu hidden" data-tab-id="${tab.id}">
@@ -205,7 +214,12 @@ function makeCard(tab, vol, index = 0) {
 
   const favicon = card.querySelector('.tab-favicon');
   if (favicon) {
-    favicon.addEventListener('error', () => { favicon.style.display = 'none'; });
+    favicon.addEventListener('error', () => {
+      const fallback = document.createElement('span');
+      fallback.className = 'material-symbols-outlined favicon-fallback';
+      fallback.textContent = 'public';
+      favicon.replaceWith(fallback);
+    });
   }
 
   return card;
@@ -231,6 +245,28 @@ function pulseLabel(el) {
   el.classList.remove('vol-pulse');
   void el.offsetWidth; // reflow to restart animation
   el.classList.add('vol-pulse');
+}
+
+// ── Step Buttons ──
+function onStepBtn(e) {
+  const btn = e.currentTarget;
+  const dir = parseInt(btn.dataset.dir);
+  const tabId = parseInt(btn.dataset.tabId);
+  const card = btn.closest('.tab-card');
+  const input = card.querySelector('.range-input');
+  const newPct = Math.max(0, Math.min(MAX_VOL, parseInt(input.value) + dir * 5));
+  input.value = newPct;
+  const vol = newPct / 100;
+  if (vol > 0) input.dataset.prevVol = newPct;
+  syncSliderUI(card, newPct);
+  volumes[tabId] = vol;
+  chrome.runtime.sendMessage({ type: 'setTabVolume', tabId, volume: vol });
+}
+
+function onGlobalStep(delta) {
+  const slider = document.getElementById('globalSlider');
+  slider.value = Math.max(0, Math.min(MAX_VOL, parseInt(slider.value) + delta));
+  slider.dispatchEvent(new Event('input'));
 }
 
 // ── Slider ──

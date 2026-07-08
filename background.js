@@ -111,6 +111,11 @@ chrome.tabs.onRemoved.addListener(tabId => chrome.storage.local.remove(KEY(tabId
 // ---- Global hotkeys ----
 const MAX = 1.5, STEP = 0.1;
 chrome.commands.onCommand.addListener(command => {
+  // Open the popup right away on the user gesture so the change is visible.
+  // The popup reads current state on load and live-syncs via storage.onChanged,
+  // so it shows the updated value even though the write below is async.
+  if (chrome.action.openPopup) chrome.action.openPopup().catch(() => {});
+
   chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
     const tab = tabs[0];
     if (!tab) return;

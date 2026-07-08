@@ -3,7 +3,7 @@
   "name": "Volume Control",
   "version": "1.0.0",
   "description": "Per-tab volume control — mute, duck, or boost any tab",
-  "permissions": ["tabs", "storage", "scripting", "tabCapture", "offscreen"],
+  "permissions": ["tabs", "storage", "scripting"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"
@@ -18,6 +18,35 @@
     "default_icon": {
       "48": "icons/logo.png",
       "128": "icons/logo.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["injected.js"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
+  "commands": {
+    "toggle-mute": {
+      "suggested_key": { "default": "Alt+Shift+M" },
+      "description": "Mute/unmute the active tab"
+    },
+    "volume-up": {
+      "suggested_key": { "default": "Alt+Shift+Up" },
+      "description": "Increase active tab volume 10%"
+    },
+    "volume-down": {
+      "suggested_key": { "default": "Alt+Shift+Down" },
+      "description": "Decrease active tab volume 10%"
     }
   }
 }

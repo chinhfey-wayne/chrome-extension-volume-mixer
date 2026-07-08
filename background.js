@@ -127,7 +127,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'setTabVolume') {
     const { tabId, volume } = msg;
     chrome.storage.local.set({ [`vol_${tabId}`]: volume }, () => {
-      applyVolume(tabId, volume);
+      applyVolume(tabId, volume).catch(() => {});
       sendResponse({ ok: true });
     });
     return true;
@@ -148,22 +148,20 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 });
 
-// Re-assert mute on navigation/audible changes (volume capture persists on its own).
+// Re-establish the stored volume for a tab (e.g. after navigation dropped the
+// capture). This IS applyVolume — same per-volume policy, no second copy. Its
+// mute/unmute/stopCapture calls are idempotent, so re-running is safe.
 function reassert(tabId) {
   chrome.storage.local.get(`vol_${tabId}`, result => {
     const vol = result[`vol_${tabId}`];
-    if (vol === undefined) return;
-    if (vol === 0) {
-      chrome.tabs.update(tabId, { muted: true }, () => { void chrome.runtime.lastError; });
-    } else if (vol !== 1.0) {
-      // Capture dies on full document reload; restart if the tab is capturable.
-      startCapture(tabId, vol);
-    }
+    if (vol !== undefined) applyVolume(tabId, vol).catch(() => {});
   });
 }
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-  if (changeInfo.status === 'loading' || changeInfo.status === 'complete' || changeInfo.audible !== undefined) {
+  // Not on 'loading' — page has no media yet and native mute already survives
+  // navigation; capture is worth restarting only once the page is up / audible.
+  if (changeInfo.status === 'complete' || changeInfo.audible !== undefined) {
     reassert(tabId);
   }
   // Self-heal: external unmute of a tab we muted → re-mute.

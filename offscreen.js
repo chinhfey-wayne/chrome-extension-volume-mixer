@@ -53,7 +53,13 @@ async function startOrUpdate(tabId, streamId, volume) {
     return;
   }
 
-  const job = (async () => {
+  const job = createCapture(tabId, streamId, volume);
+  starting.set(tabId, job);
+  try { await job; } finally { starting.delete(tabId); }
+}
+
+// Build the audio graph for a tab:  tabStream ─▶ source ─▶ gain ─▶ speakers
+async function createCapture(tabId, streamId, volume) {
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: {
       mandatory: {
@@ -80,10 +86,6 @@ async function startOrUpdate(tabId, streamId, volume) {
   });
 
   captures.set(tabId, { stream, ctx, source, gain });
-  })();
-
-  starting.set(tabId, job);
-  try { await job; } finally { starting.delete(tabId); }
 }
 
 function stop(tabId) {

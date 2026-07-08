@@ -214,7 +214,7 @@ function updateCard(card, tab, st) {
   syncMuteUI(card, st.muted);
   card.classList.toggle('audible', !!tab.audible);
   const name = card.querySelector('.tab-name');
-  if (name && tab.title) name.textContent = trunc(tab.title, 28);
+  if (name && tab.title) name.textContent = tab.title;
 }
 
 // Wire the per-card listeners (shared by first render and later inserts).
@@ -259,7 +259,7 @@ function makeCard(tab, st, index = 0) {
         ${waveHtml}
       </div>
       <div class="tab-meta">
-        <span class="tab-name" title="${esc(tab.title || '')}">${esc(trunc(tab.title || 'Untitled', 28))}</span>
+        <span class="tab-name" title="${esc(tab.title || '')}">${esc(tab.title || 'Untitled')}</span>
         ${hostname ? `<span class="tab-url">${esc(hostname)}</span>` : ''}
       </div>
       <div class="tab-controls">

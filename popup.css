@@ -700,13 +700,13 @@ html, body {
   left: 0;
   top: 0;
   bottom: 0;
-  /* Width-based fill (not scaleX) so border-radius stays a clean pill at every
-     value — no distorted/sharp right edge near 0%. */
-  width: 0;
-  max-width: 100%;
-  border-radius: 999px;
+  /* Fill's right edge sits exactly at the knob centre (same calc as .slider-thumb
+     left, shared --pos), so the knob always covers the fill's edge — no floating
+     capsule/blob at low values. Rounded on the left only; the flat right edge is
+     hidden under the knob. */
+  width: calc(14px + (100% - 28px) * var(--pos, 0));
+  border-radius: 999px 0 0 999px;
   background: linear-gradient(90deg, #ced4da, #e9ecef);
-  box-shadow: 2px 0 12px rgba(255, 255, 255, 0.6);
   pointer-events: none;
   z-index: 0;
   transition: width 0.1s cubic-bezier(0.4, 0, 0.2, 1);

@@ -138,8 +138,7 @@ function onGlobalSlider(e) {
 
 function syncGlobalUI(pct) {
   const frac = Math.min(pct / MAX_VOL, 1);
-  document.getElementById('globalFill').style.width = `${frac * 100}%`;
-  document.getElementById('globalThumb').style.setProperty('--pos', frac);
+  document.querySelector('.global-card .slider-track').style.setProperty('--pos', frac);
 }
 
 // ── Render ──
@@ -252,9 +251,9 @@ function makeCard(tab, st, index = 0) {
       <button class="vol-step-btn" data-dir="-1" data-tab-id="${tab.id}" title="Decrease volume" aria-label="Decrease volume">
         <span class="material-symbols-outlined">remove</span>
       </button>
-      <div class="slider-track">
-        <div class="slider-fill" style="width:${frac * 100}%"></div>
-        <div class="slider-thumb" style="--pos:${frac}"></div>
+      <div class="slider-track" style="--pos:${frac}">
+        <div class="slider-fill"></div>
+        <div class="slider-thumb"></div>
         <input type="range" class="range-input"
           min="0" max="${MAX_VOL}" value="${pct}"
           data-tab-id="${tab.id}" data-prev-vol="${vol === 0 ? 100 : pct}">
@@ -291,8 +290,8 @@ function makeCard(tab, st, index = 0) {
 
 function syncSliderUI(card, pct) {
   const frac = Math.min(pct / MAX_VOL, 1);
-  card.querySelector('.slider-fill').style.width = `${frac * 100}%`;
-  card.querySelector('.slider-thumb').style.setProperty('--pos', frac);
+  // Single source of truth: fill width and knob position both derive from --pos.
+  card.querySelector('.slider-track').style.setProperty('--pos', frac);
 
   const label = card.querySelector('.vol-label');
   label.textContent = pct + '%';

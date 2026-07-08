@@ -686,13 +686,12 @@ html, body {
   flex: 1;
   height: 32px;
   background: rgba(0, 0, 0, 0.07);
-  border-radius: 20px;
+  border-radius: 999px;
   border: 0.5px solid rgba(0, 0, 0, 0.09);
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
   position: relative;
   cursor: pointer;
-  /* No clipping — the knob must stay fully visible at both ends.
-     The fill shares the track's radius/bounds so it can't overflow. */
+  /* No clipping — the knob must stay fully visible at both ends. */
   overflow: visible;
 }
 
@@ -701,15 +700,17 @@ html, body {
   left: 0;
   top: 0;
   bottom: 0;
-  width: 100%;
-  border-radius: 20px;
+  /* Width-based fill (not scaleX) so border-radius stays a clean pill at every
+     value — no distorted/sharp right edge near 0%. */
+  width: 0;
+  max-width: 100%;
+  border-radius: 999px;
   background: linear-gradient(90deg, #ced4da, #e9ecef);
   box-shadow: 2px 0 12px rgba(255, 255, 255, 0.6);
   pointer-events: none;
-  transform-origin: left center;
-  transform: scaleX(0);
-  transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-  will-change: transform;
+  z-index: 0;
+  transition: width 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: width;
 }
 
 .slider-thumb {
@@ -721,6 +722,7 @@ html, body {
   transform: translate(-50%, -50%);
   width: 24px;
   height: 24px;
+  z-index: 2;
   background: #fff;
   border-radius: 50%;
   box-shadow:

@@ -48,6 +48,30 @@ async function init() {
   });
   chrome.tabs.onActivated.addListener(refreshTabsLive);
   chrome.tabs.onRemoved.addListener(refreshTabsLive);
+
+  // Live-sync when state changes outside the popup (hotkeys write storage.local).
+  chrome.storage.onChanged.addListener(onStorageChanged);
+}
+
+// Reflect external { volume, muted } changes on the matching card in real time.
+function onStorageChanged(changes, area) {
+  if (area !== 'local') return;
+  for (const [key, { newValue }] of Object.entries(changes)) {
+    if (!key.startsWith('vol_')) continue;
+    const tabId = parseInt(key.slice(4));
+    if (!newValue) { delete states[tabId]; continue; }
+    states[tabId] = newValue;
+    const card = document.querySelector(`.tab-card[data-tab-id="${tabId}"]`);
+    if (!card) continue;
+    const input = card.querySelector('.range-input');
+    if (input !== document.activeElement) {
+      const pct = Math.round(newValue.volume * 100);
+      input.value = pct;
+      if (pct > 0) input.dataset.prevVol = pct;
+      syncSliderUI(card, pct); // updates knob position + percentage label
+    }
+    syncMuteUI(card, newValue.muted);
+  }
 }
 
 async function refreshTabsLive() {
@@ -114,7 +138,7 @@ function onGlobalSlider(e) {
 
 function syncGlobalUI(pct) {
   const frac = Math.min(pct / MAX_VOL, 1);
-  document.getElementById('globalFill').style.transform = `scaleX(${frac})`;
+  document.getElementById('globalFill').style.width = `${frac * 100}%`;
   document.getElementById('globalThumb').style.setProperty('--pos', frac);
 }
 
@@ -229,7 +253,7 @@ function makeCard(tab, st, index = 0) {
         <span class="material-symbols-outlined">remove</span>
       </button>
       <div class="slider-track">
-        <div class="slider-fill" style="transform:scaleX(${frac})"></div>
+        <div class="slider-fill" style="width:${frac * 100}%"></div>
         <div class="slider-thumb" style="--pos:${frac}"></div>
         <input type="range" class="range-input"
           min="0" max="${MAX_VOL}" value="${pct}"
@@ -267,7 +291,7 @@ function makeCard(tab, st, index = 0) {
 
 function syncSliderUI(card, pct) {
   const frac = Math.min(pct / MAX_VOL, 1);
-  card.querySelector('.slider-fill').style.transform = `scaleX(${frac})`;
+  card.querySelector('.slider-fill').style.width = `${frac * 100}%`;
   card.querySelector('.slider-thumb').style.setProperty('--pos', frac);
 
   const label = card.querySelector('.vol-label');

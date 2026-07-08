@@ -42,7 +42,7 @@ async function init() {
   });
 
   chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-    if (changeInfo.audible !== undefined || changeInfo.status === 'complete') {
+    if (changeInfo.audible !== undefined || changeInfo.status === 'complete' || changeInfo.mutedInfo !== undefined) {
       refreshTabsLive();
     }
   });
@@ -300,9 +300,12 @@ function syncSliderUI(card, pct) {
 }
 
 function syncMuteUI(card, muted) {
-  const icon = card.querySelector('.mute-btn .material-symbols-outlined');
+  const btn = card.querySelector('.mute-btn');
+  if (!btn) return;
+  const icon = btn.querySelector('.material-symbols-outlined');
   if (icon) icon.textContent = muted ? 'volume_off' : 'volume_up';
-  card.querySelector('.mute-btn')?.classList.toggle('muted', muted);
+  btn.classList.toggle('muted', muted);
+  btn.title = muted ? 'Unmute' : 'Mute';
 }
 
 function pulseLabel(el) {
@@ -347,7 +350,11 @@ function onMute(e) {
   const btn = e.currentTarget;
   const tabId = parseInt(btn.dataset.tabId);
   const card = btn.closest('.tab-card');
-  const muted = !stateFor(tabId).muted;
+  // Toggle relative to the REAL current mute (stored intent OR Chrome's tab state),
+  // so unmuting an externally-muted tab works correctly.
+  const tab = allTabs.find(t => t.id === tabId);
+  const currentlyMuted = !!(stateFor(tabId).muted || tab?.mutedInfo?.muted);
+  const muted = !currentlyMuted;
   sendMuted(tabId, muted);
   syncMuteUI(card, muted);
 }

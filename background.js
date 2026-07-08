@@ -90,12 +90,14 @@ function reassert(tabId) {
 }
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   if (changeInfo.status === 'complete' || changeInfo.audible !== undefined) reassert(tabId);
-  // Self-heal: external unmute of a tab we store as muted → re-mute.
-  if (changeInfo.mutedInfo !== undefined && !changeInfo.mutedInfo.muted) {
-    chrome.storage.local.get(KEY(tabId), r => {
-      if (r[KEY(tabId)] && r[KEY(tabId)].muted) {
-        chrome.tabs.update(tabId, { muted: true }, () => { void chrome.runtime.lastError; });
-      }
+  // Adopt Chrome's real mute state as the source of truth. If the tab is muted or
+  // unmuted anywhere (Chrome's tab icon, another extension), sync our stored state
+  // to match so the UI reflects reality and reassert() won't fight it. Writing
+  // storage also live-updates an open popup via storage.onChanged.
+  if (changeInfo.mutedInfo !== undefined) {
+    const real = !!changeInfo.mutedInfo.muted;
+    getState(tabId).then(s => {
+      if (s.muted !== real) setState(tabId, { ...s, muted: real });
     });
   }
 });

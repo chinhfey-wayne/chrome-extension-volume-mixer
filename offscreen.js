@@ -65,6 +65,9 @@ async function startOrUpdate(tabId, streamId, volume) {
   });
 
   const ctx = new AudioContext();
+  // Offscreen docs have no user gesture — the context can start suspended,
+  // which means zero audio flows. Force it running.
+  if (ctx.state === 'suspended') { try { await ctx.resume(); } catch (_) {} }
   const source = ctx.createMediaStreamSource(stream);
   const gain = ctx.createGain();
   gain.gain.value = volume;

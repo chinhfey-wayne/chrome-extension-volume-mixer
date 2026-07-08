@@ -32,7 +32,7 @@ Volume Controller is designed with security as a core principle:
 - **Manifest V3** — Chrome's most sandboxed extension platform
 - **Minimal permissions** — only `tabs`, `storage`, `scripting`
 - **Open source** — full code auditable by anyone
-- **Session-only storage** — volumes cleared when Chrome closes
+- **Per-tab local storage** — settings stored in `chrome.storage.local`, keyed by tab, and cleared when the tab closes
 - **No eval()** — no dynamic code execution anywhere in the codebase
 
 ## Permissions Justification
@@ -40,6 +40,6 @@ Volume Controller is designed with security as a core principle:
 | Permission | Why it's needed |
 |---|---|
 | `tabs` | Read tab titles, favicons, and audible state for the UI |
-| `storage` | Persist volume levels across page navigations |
+| `storage` | Remember each tab's volume/mute for the tab's lifetime |
 | `scripting` | Inject gain node control into tabs via `executeScript` (MAIN world) |
 | `<all_urls>` (host permission) | Required for `scripting.executeScript` to work on any tab |

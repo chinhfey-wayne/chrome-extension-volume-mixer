@@ -114,16 +114,25 @@ Volume Controller uses the **Web Audio API** to intercept and control audio at t
        │
        ▼
 [background.js — Service Worker]
-  chrome.scripting.executeScript (world: MAIN)
-  Sets gain.value directly on the GainNode
-  Persists volumes via chrome.storage.session
+  Owns per-tab { volume, muted } state
+  Volume → content.js → injected.js gain
+  Mute → native chrome.tabs.update({ muted })
+  Persists per tab in chrome.storage.local (cleared when the tab closes)
+  Global hotkeys via chrome.commands
        │
        ▼
 [popup.js — UI Layer]
   Per-tab sliders → sendMessage → background
-  Global slider → updates all visible tab cards
+  Mute button reflects real native mute state
+  Stable row ordering + in-place card updates
   Live tab detection via chrome.tabs events
 ```
+
+**Volume vs. mute — two independent facts.** Volume is scaled inside the page by
+`injected.js` (works on every tab at once, including background tabs and Google
+Meet). Mute is Chrome's native tab mute, decoupled from volume — a tab can be at
+50% *and* muted, and unmuting returns it to 50%. Settings are remembered per tab
+for the tab's lifetime and cleared when it closes.
 
 **Why `world: MAIN`?**
 Chrome MV3 content scripts run in an isolated world by default. To control actual `AudioContext` gain nodes created by the page (YouTube's player, Spotify's engine, etc.), the script must run in the **MAIN** JavaScript context. This is why `injected.js` uses `world: "MAIN"` — it's the only reliable way to hook into real audio pipelines.
@@ -142,8 +151,8 @@ Volume Controller is built with **zero-trust privacy** principles:
 | ✅ **No network requests** | The extension never makes any outbound HTTP calls |
 | ✅ **Open source** | Every line of code is public and auditable right here |
 | ✅ **Manifest V3** | Built on Chrome's latest, most secure extension platform |
-| ✅ **Minimal permissions** | Only `tabs`, `storage`, `scripting` — no `<all_urls>` data access |
-| ✅ **Session-only storage** | Volumes stored in `chrome.storage.session` — cleared when Chrome closes |
+| ✅ **Minimal permissions** | Only `tabs`, `storage`, `scripting` |
+| ✅ **Per-tab local storage** | Settings stored in `chrome.storage.local`, keyed by tab, and cleared when the tab closes — never leaves your machine |
 
 **You can audit the full source code in minutes.** There are no minified bundles, no obfuscated code, and no build step — what you see is what runs.
 
@@ -159,7 +168,7 @@ Volume Controller is built with **zero-trust privacy** principles:
 | **Logic** | Vanilla JavaScript (ES2020+) |
 | **Fonts** | Manrope, Inter, JetBrains Mono (Google Fonts) |
 | **Icons** | Material Symbols Outlined |
-| **Storage** | `chrome.storage.session` + `localStorage` |
+| **Storage** | `chrome.storage.local` + `localStorage` |
 | **Scripting** | `chrome.scripting.executeScript` (MAIN world) |
 
 No frameworks. No bundlers. No dependencies. Pure browser APIs.

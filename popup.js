@@ -113,10 +113,9 @@ function onGlobalSlider(e) {
 }
 
 function syncGlobalUI(pct) {
-  const fillScale = Math.min(pct / MAX_VOL, 1);
-  const thumbPct = Math.max(Math.min((pct / MAX_VOL) * 100 - 2, 94), 2);
-  document.getElementById('globalFill').style.transform = `scaleX(${fillScale})`;
-  document.getElementById('globalThumb').style.left = thumbPct + '%';
+  const frac = Math.min(pct / MAX_VOL, 1);
+  document.getElementById('globalFill').style.transform = `scaleX(${frac})`;
+  document.getElementById('globalThumb').style.setProperty('--pos', frac);
 }
 
 // ── Render ──
@@ -182,8 +181,7 @@ function makeCard(tab, st, index = 0) {
   const vol = st.volume;
   const muted = st.muted;
   const pct = Math.round(vol * 100);
-  const fillScale = Math.min(pct / MAX_VOL, 1);
-  const thumbPct = Math.max(Math.min((pct / MAX_VOL) * 100 - 2, 94), 2);
+  const frac = Math.min(pct / MAX_VOL, 1);
   const isPaused = pausedTabs.has(tab.id);
   const hostname = tab.url ? (() => { try { return new URL(tab.url).hostname.replace('www.', ''); } catch { return ''; } })() : '';
 
@@ -227,15 +225,19 @@ function makeCard(tab, st, index = 0) {
       </div>
     </div>
     <div class="slider-row">
-      <button class="vol-step-btn" data-dir="-1" data-tab-id="${tab.id}" title="Decrease volume">&#9664;</button>
+      <button class="vol-step-btn" data-dir="-1" data-tab-id="${tab.id}" title="Decrease volume" aria-label="Decrease volume">
+        <span class="material-symbols-outlined">remove</span>
+      </button>
       <div class="slider-track">
-        <div class="slider-fill" style="transform:scaleX(${fillScale})"></div>
-        <div class="slider-thumb" style="left:${thumbPct}%"></div>
+        <div class="slider-fill" style="transform:scaleX(${frac})"></div>
+        <div class="slider-thumb" style="--pos:${frac}"></div>
         <input type="range" class="range-input"
           min="0" max="${MAX_VOL}" value="${pct}"
           data-tab-id="${tab.id}" data-prev-vol="${vol === 0 ? 100 : pct}">
       </div>
-      <button class="vol-step-btn" data-dir="1" data-tab-id="${tab.id}" title="Increase volume">&#9654;</button>
+      <button class="vol-step-btn" data-dir="1" data-tab-id="${tab.id}" title="Increase volume" aria-label="Increase volume">
+        <span class="material-symbols-outlined">add</span>
+      </button>
       <span class="vol-label">${pct}%</span>
     </div>
     <div class="tab-menu hidden" data-tab-id="${tab.id}">
@@ -264,10 +266,9 @@ function makeCard(tab, st, index = 0) {
 }
 
 function syncSliderUI(card, pct) {
-  const fillScale = Math.min(pct / MAX_VOL, 1);
-  const thumbPct = Math.max(Math.min((pct / MAX_VOL) * 100 - 2, 94), 2);
-  card.querySelector('.slider-fill').style.transform = `scaleX(${fillScale})`;
-  card.querySelector('.slider-thumb').style.left = thumbPct + '%';
+  const frac = Math.min(pct / MAX_VOL, 1);
+  card.querySelector('.slider-fill').style.transform = `scaleX(${frac})`;
+  card.querySelector('.slider-thumb').style.setProperty('--pos', frac);
 
   const label = card.querySelector('.vol-label');
   label.textContent = pct + '%';

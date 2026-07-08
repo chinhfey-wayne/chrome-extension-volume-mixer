@@ -1,16 +1,16 @@
 const MAX_VOL = 150;
 
 let allTabs = [];
-let volumes = {};
+let states = {}; // tabId -> { volume, muted }
 let showAll = false;
 const pausedTabs = new Set();
 const removedTabIds = new Set(JSON.parse(localStorage.getItem('removedTabIds') || '[]'));
 
 // ── Init ──
 async function init() {
-  [allTabs, volumes] = await Promise.all([
+  [allTabs, states] = await Promise.all([
     chrome.tabs.query({}),
-    getAllVolumes(),
+    getAllStates(),
   ]);
   render();
   startWaveformAnimation();
@@ -26,7 +26,7 @@ async function init() {
   document.getElementById('resetAllBtn').addEventListener('click', onResetAll);
   document.getElementById('refreshBtn').addEventListener('click', async () => {
     allTabs = await chrome.tabs.query({});
-    volumes = await getAllVolumes();
+    states = await getAllStates();
     render();
   });
   document.getElementById('toggleAllBtn').addEventListener('click', toggleShowAll);
@@ -51,11 +51,8 @@ async function init() {
 }
 
 async function refreshTabsLive() {
-  const latestTabs = await chrome.tabs.query({});
-  const latestVolumes = await getAllVolumes();
-
-  allTabs = latestTabs;
-  volumes = latestVolumes;
+  allTabs = await chrome.tabs.query({});
+  states = await getAllStates();
   render();
 }
 
@@ -65,13 +62,26 @@ function toggleShowAll() {
   render();
 }
 
-function getAllVolumes() {
+function getAllStates() {
   return new Promise(resolve => {
     chrome.runtime.sendMessage({ type: 'getAllVolumes' }, res => {
       if (chrome.runtime.lastError) return resolve({});
-      resolve(res?.volumes ?? {});
+      resolve(res?.states ?? {});
     });
   });
+}
+
+function stateFor(tabId) { return states[tabId] ?? { volume: 1.0, muted: false }; }
+
+function sendVolume(tabId, volume) {
+  const s = stateFor(tabId);
+  states[tabId] = { ...s, volume };
+  chrome.runtime.sendMessage({ type: 'setTabVolume', tabId, volume });
+}
+function sendMuted(tabId, muted) {
+  const s = stateFor(tabId);
+  states[tabId] = { ...s, muted };
+  chrome.runtime.sendMessage({ type: 'setTabMuted', tabId, muted });
 }
 
 function visibleTabs() {
@@ -79,18 +89,10 @@ function visibleTabs() {
 
   const filtered = showAll
     ? tabs
-    : tabs.filter(t => t.audible || volumes[t.id] !== undefined);
+    : tabs.filter(t => t.audible || states[t.id] !== undefined);
 
-  return filtered.sort((a, b) => {
-    if (a.audible && !b.audible) return -1;
-    if (!a.audible && b.audible) return 1;
-    return a.index - b.index;
-  });
-}
-
-// Direct native mute — no background roundtrip, no service-worker wakeup delay
-function nativeMute(tabId, muted) {
-  chrome.tabs.update(tabId, { muted }, () => { void chrome.runtime.lastError; });
+  // Stable: natural tab-strip position. Never reorder on audible/volume change.
+  return filtered.sort((a, b) => (a.windowId - b.windowId) || (a.index - b.index));
 }
 
 // ── Global Output ──
@@ -102,13 +104,11 @@ function onGlobalSlider(e) {
 
   document.querySelectorAll('.tab-card').forEach(card => {
     const tabId = parseInt(card.dataset.tabId);
-    volumes[tabId] = vol;
     const input = card.querySelector('.range-input');
     input.value = pct;
     if (vol > 0) input.dataset.prevVol = pct;
     syncSliderUI(card, pct);
-    nativeMute(tabId, vol === 0);
-    chrome.runtime.sendMessage({ type: 'setTabVolume', tabId, volume: vol });
+    sendVolume(tabId, vol);
   });
 }
 
@@ -128,27 +128,59 @@ function render() {
   document.getElementById('sourceCount').textContent =
     `${tabs.length} TAB${tabs.length !== 1 ? 'S' : ''}`;
 
-  if (tabs.length === 0) {
-    list.innerHTML = '';
-    empty.classList.remove('hidden');
-    return;
-  }
-  empty.classList.add('hidden');
-  list.innerHTML = '';
+  empty.classList.toggle('hidden', tabs.length !== 0);
+
+  const seen = new Set();
   tabs.forEach((tab, i) => {
-    const card = makeCard(tab, volumes[tab.id] ?? 1.0, i);
-    list.appendChild(card);
+    seen.add(tab.id);
+    const existing = list.querySelector(`.tab-card[data-tab-id="${tab.id}"]`);
+    const st = stateWithMuted(tab);
+    if (existing) {
+      updateCard(existing, tab, st);
+    } else {
+      const card = makeCard(tab, st, i);
+      list.appendChild(card);
+      wireCard(card);
+    }
   });
 
-  list.querySelectorAll('.range-input').forEach(r => r.addEventListener('input', onSlider));
-  list.querySelectorAll('.mute-btn').forEach(b => b.addEventListener('click', onMute));
-  list.querySelectorAll('.pause-btn').forEach(b => b.addEventListener('click', onPause));
-  list.querySelectorAll('.more-btn').forEach(b => b.addEventListener('click', onMoreMenu));
-  list.querySelectorAll('.menu-item').forEach(b => b.addEventListener('click', onMenuAction));
-  list.querySelectorAll('.vol-step-btn').forEach(b => b.addEventListener('click', onStepBtn));
+  // Remove cards for tabs no longer visible.
+  list.querySelectorAll('.tab-card').forEach(card => {
+    if (!seen.has(parseInt(card.dataset.tabId))) card.remove();
+  });
 }
 
-function makeCard(tab, vol, index = 0) {
+// A tab's effective state, folding in Chrome's real native mute.
+function stateWithMuted(tab) {
+  const s = states[tab.id] ?? { volume: 1.0, muted: false };
+  return { volume: s.volume, muted: s.muted || !!tab.mutedInfo?.muted };
+}
+
+// Update an existing card in place — never during an active slider drag.
+function updateCard(card, tab, st) {
+  const input = card.querySelector('.range-input');
+  if (input === document.activeElement) return;
+  const pct = Math.round(st.volume * 100);
+  if (parseInt(input.value) !== pct) { input.value = pct; syncSliderUI(card, pct); }
+  syncMuteUI(card, st.muted);
+  card.classList.toggle('audible', !!tab.audible);
+  const name = card.querySelector('.tab-name');
+  if (name && tab.title) name.textContent = trunc(tab.title, 28);
+}
+
+// Wire the per-card listeners (shared by first render and later inserts).
+function wireCard(card) {
+  card.querySelectorAll('.range-input').forEach(r => r.addEventListener('input', onSlider));
+  card.querySelectorAll('.mute-btn').forEach(b => b.addEventListener('click', onMute));
+  card.querySelectorAll('.pause-btn').forEach(b => b.addEventListener('click', onPause));
+  card.querySelectorAll('.more-btn').forEach(b => b.addEventListener('click', onMoreMenu));
+  card.querySelectorAll('.menu-item').forEach(b => b.addEventListener('click', onMenuAction));
+  card.querySelectorAll('.vol-step-btn').forEach(b => b.addEventListener('click', onStepBtn));
+}
+
+function makeCard(tab, st, index = 0) {
+  const vol = st.volume;
+  const muted = st.muted;
   const pct = Math.round(vol * 100);
   const fillScale = Math.min(pct / MAX_VOL, 1);
   const thumbPct = Math.max(Math.min((pct / MAX_VOL) * 100 - 2, 94), 2);
@@ -186,8 +218,8 @@ function makeCard(tab, vol, index = 0) {
         <button class="ctrl-btn pause-btn ${isPaused ? 'paused' : ''}" data-tab-id="${tab.id}" title="${isPaused ? 'Resume' : 'Pause'}">
           <span class="material-symbols-outlined">${isPaused ? 'play_arrow' : 'pause'}</span>
         </button>
-        <button class="ctrl-btn mute-btn ${vol === 0 ? 'muted' : ''}" data-tab-id="${tab.id}" title="${vol === 0 ? 'Unmute' : 'Mute'}">
-          <span class="material-symbols-outlined">${vol === 0 ? 'volume_off' : 'volume_up'}</span>
+        <button class="ctrl-btn mute-btn ${muted ? 'muted' : ''}" data-tab-id="${tab.id}" title="${muted ? 'Unmute' : 'Mute'}">
+          <span class="material-symbols-outlined">${muted ? 'volume_off' : 'volume_up'}</span>
         </button>
         <button class="ctrl-btn more-btn" data-tab-id="${tab.id}" title="More options">
           <span class="material-symbols-outlined">more_vert</span>
@@ -240,11 +272,12 @@ function syncSliderUI(card, pct) {
   const label = card.querySelector('.vol-label');
   label.textContent = pct + '%';
   pulseLabel(label);
+}
 
-  const vol = pct / 100;
-  card.querySelector('.mute-btn .material-symbols-outlined').textContent =
-    vol === 0 ? 'volume_off' : 'volume_up';
-  card.querySelector('.mute-btn').classList.toggle('muted', vol === 0);
+function syncMuteUI(card, muted) {
+  const icon = card.querySelector('.mute-btn .material-symbols-outlined');
+  if (icon) icon.textContent = muted ? 'volume_off' : 'volume_up';
+  card.querySelector('.mute-btn')?.classList.toggle('muted', muted);
 }
 
 function pulseLabel(el) {
@@ -262,12 +295,9 @@ function onStepBtn(e) {
   const input = card.querySelector('.range-input');
   const newPct = Math.max(0, Math.min(MAX_VOL, parseInt(input.value) + dir * 5));
   input.value = newPct;
-  const vol = newPct / 100;
-  if (vol > 0) input.dataset.prevVol = newPct;
+  if (newPct > 0) input.dataset.prevVol = newPct;
   syncSliderUI(card, newPct);
-  volumes[tabId] = vol;
-  nativeMute(tabId, vol === 0);
-  chrome.runtime.sendMessage({ type: 'setTabVolume', tabId, volume: vol });
+  sendVolume(tabId, newPct / 100);
 }
 
 function onGlobalStep(delta) {
@@ -281,13 +311,10 @@ function onSlider(e) {
   const input = e.target;
   const tabId = parseInt(input.dataset.tabId);
   const pct = parseInt(input.value);
-  const vol = pct / 100;
   const card = input.closest('.tab-card');
   syncSliderUI(card, pct);
-  if (vol > 0) input.dataset.prevVol = pct;
-  volumes[tabId] = vol;
-  nativeMute(tabId, vol === 0);
-  chrome.runtime.sendMessage({ type: 'setTabVolume', tabId, volume: vol });
+  if (pct > 0) input.dataset.prevVol = pct;
+  sendVolume(tabId, pct / 100);
 }
 
 // ── Mute ──
@@ -295,19 +322,9 @@ function onMute(e) {
   const btn = e.currentTarget;
   const tabId = parseInt(btn.dataset.tabId);
   const card = btn.closest('.tab-card');
-  const input = card.querySelector('.range-input');
-  const currentVol = volumes[tabId] ?? 1.0;
-
-  const newVol = currentVol === 0
-    ? parseFloat(input.dataset.prevVol ?? 100) / 100
-    : (() => { input.dataset.prevVol = Math.round(currentVol * 100); return 0; })();
-
-  const newPct = Math.round(newVol * 100);
-  input.value = newPct;
-  syncSliderUI(card, newPct);
-  volumes[tabId] = newVol;
-  nativeMute(tabId, newVol === 0);
-  chrome.runtime.sendMessage({ type: 'setTabVolume', tabId, volume: newVol });
+  const muted = !stateFor(tabId).muted;
+  sendMuted(tabId, muted);
+  syncMuteUI(card, muted);
 }
 
 // ── Pause / Play ──
@@ -367,7 +384,7 @@ function onMenuAction(e) {
     setTimeout(() => {
       card.remove();
       allTabs = allTabs.filter(t => t.id !== tabId);
-      delete volumes[tabId];
+      delete states[tabId];
       const remaining = visibleTabs().length;
       document.getElementById('sourceCount').textContent =
         `${remaining} TAB${remaining !== 1 ? 'S' : ''}`;
@@ -386,29 +403,17 @@ function onMenuAction(e) {
 
 // ── Bulk actions ──
 function onMuteAll() {
-  visibleTabs().forEach(tab => {
-    volumes[tab.id] = 0;
-    nativeMute(tab.id, true);
-    chrome.runtime.sendMessage({ type: 'setTabVolume', tabId: tab.id, volume: 0 });
-  });
+  visibleTabs().forEach(tab => sendMuted(tab.id, true));
   render();
 }
 
 function onBoostAll() {
-  visibleTabs().forEach(tab => {
-    volumes[tab.id] = 1.5;
-    nativeMute(tab.id, false);
-    chrome.runtime.sendMessage({ type: 'setTabVolume', tabId: tab.id, volume: 1.5 });
-  });
+  visibleTabs().forEach(tab => sendVolume(tab.id, 1.5));
   render();
 }
 
 function onResetAll() {
-  visibleTabs().forEach(tab => {
-    volumes[tab.id] = 1.0;
-    nativeMute(tab.id, false);
-    chrome.runtime.sendMessage({ type: 'setTabVolume', tabId: tab.id, volume: 1.0 });
-  });
+  visibleTabs().forEach(tab => { sendVolume(tab.id, 1.0); sendMuted(tab.id, false); });
   const slider = document.getElementById('globalSlider');
   slider.value = 100;
   document.getElementById('globalVolLabel').textContent = '100%';

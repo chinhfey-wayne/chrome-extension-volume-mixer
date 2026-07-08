@@ -1,0 +1,100 @@
+// injected.js — MAIN world. The single place page audio volume is scaled.
+(function () {
+  const clamp01 = v => Math.max(0, Math.min(1, v));
+
+  // Per-tab volume, cached per browsing context so a reload re-applies instantly.
+  let volume = (() => {
+    try { return parseFloat(sessionStorage.getItem('__vmVol') || '1') || 1.0; }
+    catch (_) { return 1.0; }
+  })();
+
+  const gainNodes = [];
+  window.__vmGains = gainNodes;
+
+  // ---- AudioContext: route destination through our gain (covers Google Meet, games) ----
+  const OrigCtx = window.AudioContext || window.webkitAudioContext;
+  if (OrigCtx) {
+    const OrigBase = window.BaseAudioContext || OrigCtx;
+    const destDesc = Object.getOwnPropertyDescriptor(OrigBase.prototype, 'destination');
+    const origDestGetter = destDesc && destDesc.get;
+    const origCreateMES = OrigCtx.prototype.createMediaElementSource;
+
+    if (origDestGetter) {
+      function PatchedAudioContext(...args) {
+        const ctx = new OrigCtx(...args);
+        const realDest = origDestGetter.call(ctx);
+        const gain = OrigCtx.prototype.createGain.call(ctx);
+        gain.gain.value = volume;
+        gain.connect(realDest);
+        gainNodes.push(gain);
+        Object.defineProperty(ctx, 'destination', { get: () => gain, configurable: true });
+        return ctx;
+      }
+      PatchedAudioContext.prototype = OrigCtx.prototype;
+      Object.setPrototypeOf(PatchedAudioContext, OrigCtx);
+      window.AudioContext = PatchedAudioContext;
+      if (window.webkitAudioContext) window.webkitAudioContext = PatchedAudioContext;
+    }
+
+    // Tag any element the site routes into Web Audio so we never double-scale it.
+    if (origCreateMES) {
+      OrigCtx.prototype.createMediaElementSource = function (el) {
+        try { if (el) el.__vmRouted = true; } catch (_) {}
+        return origCreateMES.call(this, el);
+      };
+    }
+  }
+
+  // ---- HTMLMediaElement.volume override (covers plain <audio>/<video>) ----
+  const volDesc = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'volume');
+  if (volDesc) {
+    Object.defineProperty(HTMLMediaElement.prototype, 'volume', {
+      get() { return this._reqVol ?? volDesc.get.call(this); },
+      set(v) { this._reqVol = v; applyToElement(this); },
+      configurable: true,
+    });
+
+    const origPlay = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function (...args) {
+      if (this._reqVol === undefined) this._reqVol = volDesc.get.call(this);
+      applyToElement(this);
+      return origPlay.apply(this, args);
+    };
+  }
+
+  function applyToElement(el) {
+    if (!volDesc) return;
+    const req = el._reqVol ?? 1.0;
+    // Routed into Web Audio → the gain scales it; element carries the raw request only.
+    if (el.__vmRouted) { volDesc.set.call(el, clamp01(req)); return; }
+    // Plain element: scale directly. Boost >100% is handled in Task 7.
+    volDesc.set.call(el, clamp01(req * Math.min(volume, 1)));
+  }
+
+  function applyVolume(v) {
+    volume = v;
+    try { sessionStorage.setItem('__vmVol', String(v)); } catch (_) {}
+    gainNodes.forEach(g => { try { g.gain.value = v; } catch (_) {} });
+    document.querySelectorAll('audio, video').forEach(applyToElement);
+  }
+  window.__vmApply = applyVolume;
+
+  // Apply to media/audio elements added after load.
+  const observer = new MutationObserver(muts => {
+    if (volume === 1.0) return;
+    for (const m of muts) for (const node of m.addedNodes) {
+      if (node.nodeType !== 1) continue;
+      if (node.matches && node.matches('audio, video')) applyToElement(node);
+      if (node.querySelectorAll) node.querySelectorAll('audio, video').forEach(applyToElement);
+    }
+  });
+  observer.observe(document.documentElement, { childList: true, subtree: true });
+
+  // Message bridge from content.js.
+  window.addEventListener('message', e => {
+    if (!e.data || !e.data.__vm__ || e.source !== window) return;
+    if (e.data.action === 'setVolume') applyVolume(e.data.volume);
+    if (e.data.action === 'pause') document.querySelectorAll('audio, video').forEach(el => { try { el.pause(); } catch (_) {} });
+    if (e.data.action === 'play')  document.querySelectorAll('audio, video').forEach(el => { try { el.play().catch(() => {}); } catch (_) {} });
+  });
+})();

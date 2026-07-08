@@ -14,3 +14,6 @@
 *.pfx
 secrets.json
 config.local.json
+test/node_modules/
+test/popup.png
+test/test-results/

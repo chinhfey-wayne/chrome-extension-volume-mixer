@@ -51,10 +51,37 @@ async function init() {
 
   // Live-sync when state changes outside the popup (hotkeys write storage.local).
   chrome.storage.onChanged.addListener(onStorageChanged);
+
+  // If this popup was opened by a shortcut (a fresh ping), run as an auto-closing
+  // HUD. A real click/drag anywhere cancels that — the user is now in control.
+  chrome.storage.session.get('hudPing', r => {
+    if (r.hudPing && Date.now() - r.hudPing < 1500) startHud();
+  });
+  document.addEventListener('pointerdown', cancelHud);
+}
+
+// ── Shortcut HUD: auto-close the popup a short while after the last shortcut ──
+const HUD_MS = 2500;
+let hudTimer = null;
+let hudActive = false;
+
+function startHud() {
+  hudActive = true;
+  clearTimeout(hudTimer);
+  hudTimer = setTimeout(() => { try { window.close(); } catch (_) {} }, HUD_MS);
+}
+function cancelHud() {
+  hudActive = false;
+  clearTimeout(hudTimer);
 }
 
 // Reflect external { volume, muted } changes on the matching card in real time.
 function onStorageChanged(changes, area) {
+  // Each shortcut pings session storage → (re)start the HUD close timer.
+  if (area === 'session') {
+    if (changes.hudPing) startHud();
+    return;
+  }
   if (area !== 'local') return;
   for (const [key, { newValue }] of Object.entries(changes)) {
     if (!key.startsWith('vol_')) continue;

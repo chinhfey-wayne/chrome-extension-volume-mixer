@@ -117,6 +117,8 @@ chrome.commands.onCommand.addListener(command => {
   // The popup reads current state on load and live-syncs via storage.onChanged,
   // so it shows the updated value even though the write below is async.
   if (chrome.action.openPopup) chrome.action.openPopup().catch(() => {});
+  // Ping the popup so it (re)starts its HUD auto-close timer on every shortcut.
+  chrome.storage.session.set({ hudPing: Date.now() });
 
   chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
     const tab = tabs[0];

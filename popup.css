@@ -336,6 +336,15 @@ html, body {
   background: #fff;
 }
 
+.action-btn.active {
+  background: rgba(75, 142, 255, 0.14);
+  border-color: rgba(75, 142, 255, 0.55);
+  color: #4b8eff;
+  box-shadow:
+    0 0 0 1px rgba(75, 142, 255, 0.35),
+    0 4px 14px rgba(75, 142, 255, 0.20);
+}
+
 .action-btn:active {
   transform: scale(0.93);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);

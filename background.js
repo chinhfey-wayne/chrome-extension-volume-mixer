@@ -66,6 +66,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     });
     return true;
   }
+  if (msg.type === 'setTabState') {
+    // Atomic write of BOTH volume and mute — avoids the read-modify-write race
+    // that happens when volume and mute are sent as two separate messages.
+    const { tabId, volume, muted } = msg;
+    const next = { volume, muted };
+    setState(tabId, next).then(() => { applyState(tabId, next); sendResponse({ ok: true }); });
+    return true;
+  }
+
   if (msg.type === 'setTabMuted') {
     const { tabId, muted } = msg;
     getState(tabId).then(s => {

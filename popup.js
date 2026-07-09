@@ -129,6 +129,15 @@ function sendMuted(tabId, muted) {
   states[tabId] = { ...s, muted };
   chrome.runtime.sendMessage({ type: 'setTabMuted', tabId, muted });
 }
+// Set volume AND mute atomically (one storage write) — used by bulk actions so
+// the two don't race and clobber each other.
+function sendState(tabId, volume, muted) {
+  states[tabId] = { volume, muted };
+  chrome.runtime.sendMessage({ type: 'setTabState', tabId, volume, muted });
+}
+function isMuted(tab) {
+  return !!(states[tab.id]?.muted || tab.mutedInfo?.muted);
+}
 
 function visibleTabs() {
   const tabs = allTabs.filter(t => !removedTabIds.has(t.id));
@@ -192,6 +201,9 @@ function render() {
   list.querySelectorAll('.tab-card').forEach(card => {
     if (!seen.has(parseInt(card.dataset.tabId))) card.remove();
   });
+
+  // Mute-All button reflects whether every visible tab is currently muted.
+  updateMuteAllBtn(tabs.length > 0 && tabs.every(isMuted));
 }
 
 // A tab's effective state, folding in Chrome's real native mute.
@@ -455,8 +467,13 @@ function onMenuAction(e) {
 }
 
 // ── Bulk actions ──
+// Toggle: if every visible tab is muted → unmute all; otherwise mute all.
 function onMuteAll() {
-  visibleTabs().forEach(tab => sendMuted(tab.id, true));
+  const tabs = visibleTabs();
+  const allMuted = tabs.length > 0 && tabs.every(isMuted);
+  const target = !allMuted;
+  tabs.forEach(tab => sendMuted(tab.id, target));
+  updateMuteAllBtn(target);
   render();
 }
 
@@ -466,12 +483,23 @@ function onBoostAll() {
 }
 
 function onResetAll() {
-  visibleTabs().forEach(tab => { sendVolume(tab.id, 1.0); sendMuted(tab.id, false); });
+  // Atomic per tab: volume 100% AND unmuted in a single write (no vol/mute race).
+  visibleTabs().forEach(tab => sendState(tab.id, 1.0, false));
   const slider = document.getElementById('globalSlider');
   slider.value = 100;
   document.getElementById('globalVolLabel').textContent = '100%';
   syncGlobalUI(100);
+  updateMuteAllBtn(false);
   render();
+}
+
+// Reflect Mute-All state on the button (label + icon + active highlight).
+function updateMuteAllBtn(muted) {
+  const btn = document.getElementById('muteAllBtn');
+  if (!btn) return;
+  btn.querySelector('.material-symbols-outlined').textContent = muted ? 'volume_off' : 'volume_up';
+  btn.querySelector('.action-label').textContent = muted ? 'Unmute All' : 'Mute All';
+  btn.classList.toggle('active', muted);
 }
 
 // ── Add-tab picker (restore removed tabs) ──

@@ -93,6 +93,16 @@
       el.__vmRouted = true;
       el.__vmBoost = g;
     } catch (_) { /* already source-node'd by the site; leave as-is */ }
+    resumeCtxs();
+  }
+
+  // A context created without a page gesture (e.g. boost triggered from the
+  // popup) can start/stay suspended, which freezes the gain — resume any we own.
+  function resumeCtxs() {
+    try { if (boostCtx && boostCtx.state === 'suspended') boostCtx.resume(); } catch (_) {}
+    gainNodes.forEach(g => {
+      try { if (g.context && g.context.state === 'suspended') g.context.resume(); } catch (_) {}
+    });
   }
 
   function applyVolume(v) {
@@ -100,8 +110,21 @@
     try { sessionStorage.setItem('__vmVol', String(v)); } catch (_) {}
     gainNodes.forEach(g => { try { g.gain.value = v; } catch (_) {} });
     document.querySelectorAll('audio, video').forEach(applyToElement);
+    resumeCtxs();
   }
   window.__vmApply = applyVolume;
+
+  // Diagnostic — run window.__vmDebug() in a page's console to see real state.
+  window.__vmDebug = () => ({
+    volume,
+    gainNodes: gainNodes.map(g => ({ gain: g.gain.value, ctx: g.context && g.context.state })),
+    media: [...document.querySelectorAll('audio, video')].map(el => ({
+      tag: el.tagName, elVolume: el.volume, req: el._reqVol,
+      routed: !!el.__vmRouted, boostGain: el.__vmBoost ? el.__vmBoost.gain.value : null,
+      boostCtx: el.__vmBoost ? el.__vmBoost.context.state : null,
+      net: el.volume * (el.__vmBoost ? el.__vmBoost.gain.value : 1),
+    })),
+  });
 
   // Apply to media/audio elements added after load.
   const observer = new MutationObserver(muts => {

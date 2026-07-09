@@ -24,11 +24,6 @@ async function init() {
   document.getElementById('muteAllBtn').addEventListener('click', onMuteAll);
   document.getElementById('boostAllBtn').addEventListener('click', onBoostAll);
   document.getElementById('resetAllBtn').addEventListener('click', onResetAll);
-  document.getElementById('refreshBtn').addEventListener('click', async () => {
-    allTabs = await chrome.tabs.query({});
-    states = await getAllStates();
-    render();
-  });
   document.getElementById('toggleAllBtn').addEventListener('click', toggleShowAll);
   document.getElementById('addTabBtn').addEventListener('click', onAddTabBtn);
 

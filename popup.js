@@ -49,6 +49,11 @@ async function init() {
   // Live-sync when state changes outside the popup (hotkeys write storage.local).
   chrome.storage.onChanged.addListener(onStorageChanged);
 
+  // Belt-and-suspenders: also poll while the popup is open. Event-driven sync
+  // above should be instant, but this guarantees the popup self-corrects
+  // within ~1s regardless of any missed/delayed event.
+  setInterval(refreshTabsLive, 1000);
+
   // If this popup was opened by a shortcut (a fresh ping), run as an auto-closing
   // HUD. A real click/drag anywhere cancels that — the user is now in control.
   chrome.storage.session.get('hudPing', r => {

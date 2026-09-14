@@ -1,3 +1,5 @@
+console.log('[VolumeControl] popup.js loaded, manifest version', chrome.runtime.getManifest().version);
+
 const MAX_VOL = 150;
 
 let allTabs = [];

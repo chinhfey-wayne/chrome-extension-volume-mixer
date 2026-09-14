@@ -1,4 +1,5 @@
 // Service worker — owns per-tab {volume, muted}, native mute, injection apply, hotkeys.
+console.log('[VolumeControl] background.js loaded, manifest version', chrome.runtime.getManifest().version);
 
 const KEY = id => `vol_${id}`;
 const DEFAULT_STATE = { volume: 1.0, muted: false };

@@ -174,3 +174,109 @@ test('native mute/unmute on a genuinely audible tab (reassert() firing concurren
   await ctx.close();
   server.close();
 });
+
+test('two concurrently-active tabs stay independently correct in an open popup', async () => {
+  const { ctx, sw, extId } = await launch();
+
+  const page1 = await ctx.newPage();
+  await page1.goto('https://example.com');
+  const page2 = await ctx.newPage();
+  await page2.goto('https://example.org');
+
+  const [tabId1, tabId2] = await sw.evaluate(async () => {
+    const tabs = await chrome.tabs.query({});
+    return [
+      tabs.find(t => t.url && t.url.includes('example.com')).id,
+      tabs.find(t => t.url && t.url.includes('example.org')).id,
+    ];
+  });
+
+  const popup = await ctx.newPage();
+  await popup.goto(`chrome-extension://${extId}/popup.html`);
+  await popup.waitForSelector('.widget');
+
+  // Fire mute/unmute toggles on BOTH tabs interleaved with no delay, to force
+  // overlapping refreshTabsLive() calls in the popup — each onUpdated event
+  // (for either tab) triggers one, and with two tabs firing close together
+  // an in-flight call can be overtaken by a later one that resolves first.
+  await sw.evaluate(async ([id1, id2]) => {
+    await Promise.all([
+      chrome.tabs.update(id1, { muted: true }),
+      chrome.tabs.update(id2, { muted: true }),
+    ]);
+    await Promise.all([
+      chrome.tabs.update(id1, { muted: false }),
+      chrome.tabs.update(id2, { muted: true }),
+    ]);
+  }, [tabId1, tabId2]);
+
+  await new Promise(r => setTimeout(r, 1500)); // let events + polling settle
+
+  const real1 = await sw.evaluate(async (id) => (await chrome.tabs.get(id)).mutedInfo.muted, tabId1);
+  const real2 = await sw.evaluate(async (id) => (await chrome.tabs.get(id)).mutedInfo.muted, tabId2);
+  expect(real1).toBe(false);
+  expect(real2).toBe(true);
+
+  const cardMuted = async (id) => popup.evaluate((tid) => {
+    const card = document.querySelector(`.tab-card[data-tab-id="${tid}"]`);
+    return card ? card.querySelector('.mute-btn')?.classList.contains('muted') : null;
+  }, id);
+
+  expect(await cardMuted(tabId1)).toBe(false);
+  expect(await cardMuted(tabId2)).toBe(true);
+
+  await ctx.close();
+});
+
+test('clicking the extension mute button on one of two tabs actually mutes only that tab', async () => {
+  const { ctx, sw, extId } = await launch();
+
+  const page1 = await ctx.newPage();
+  await page1.goto('https://example.com');
+  const page2 = await ctx.newPage();
+  await page2.goto('https://example.org');
+
+  const [tabId1, tabId2] = await sw.evaluate(async () => {
+    const tabs = await chrome.tabs.query({});
+    return [
+      tabs.find(t => t.url && t.url.includes('example.com')).id,
+      tabs.find(t => t.url && t.url.includes('example.org')).id,
+    ];
+  });
+
+  // Both tabs need to be visible in the popup's default (non-"show all")
+  // view, which requires either audible or a pre-existing stored state.
+  // Give each an explicit stored state so both get tracked.
+  await sw.evaluate(async (id) => {
+    await chrome.storage.local.set({ [`vol_${id}`]: { volume: 1.0, muted: false } });
+  }, tabId1);
+  await sw.evaluate(async (id) => {
+    await chrome.storage.local.set({ [`vol_${id}`]: { volume: 1.0, muted: false } });
+  }, tabId2);
+
+  const popup = await ctx.newPage();
+  await popup.goto(`chrome-extension://${extId}/popup.html`);
+  await popup.waitForSelector('.widget');
+  await popup.waitForSelector(`.tab-card[data-tab-id="${tabId1}"]`);
+  await popup.waitForSelector(`.tab-card[data-tab-id="${tabId2}"]`);
+
+  // Click tab1's own mute button through the real popup UI/handler, exactly
+  // like the user clicking it, not by calling sendMuted() directly.
+  await popup.click(`.tab-card[data-tab-id="${tabId1}"] .mute-btn`);
+  await popup.waitForTimeout(500);
+
+  const real1 = await sw.evaluate(async (id) => (await chrome.tabs.get(id)).mutedInfo.muted, tabId1);
+  const real2 = await sw.evaluate(async (id) => (await chrome.tabs.get(id)).mutedInfo.muted, tabId2);
+  expect(real1).toBe(true);
+  expect(real2).toBe(false);
+
+  const cardMuted = async (id) => popup.evaluate((tid) => {
+    const card = document.querySelector(`.tab-card[data-tab-id="${tid}"]`);
+    return card.querySelector('.mute-btn').classList.contains('muted');
+  }, id);
+
+  expect(await cardMuted(tabId1)).toBe(true);
+  expect(await cardMuted(tabId2)).toBe(false);
+
+  await ctx.close();
+});

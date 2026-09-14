@@ -193,7 +193,7 @@ function render() {
   tabs.forEach((tab, i) => {
     seen.add(tab.id);
     const existing = list.querySelector(`.tab-card[data-tab-id="${tab.id}"]`);
-    const st = stateWithMuted(tab);
+    const st = stateFor(tab.id);
     if (existing) {
       updateCard(existing, tab, st);
     } else {
@@ -210,11 +210,6 @@ function render() {
 
   // Mute-All button reflects whether every visible tab is currently muted.
   updateMuteAllBtn(tabs.length > 0 && tabs.every(isMuted));
-}
-
-function stateWithMuted(tab) {
-  const s = states[tab.id] ?? { volume: 1.0, muted: false };
-  return { volume: s.volume, muted: s.muted };
 }
 
 // Update an existing card in place — never during an active slider drag.

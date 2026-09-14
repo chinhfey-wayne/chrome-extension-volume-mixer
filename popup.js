@@ -78,11 +78,13 @@ function onStorageChanged(changes, area) {
     return;
   }
   if (area !== 'local') return;
+  let touchedMute = false;
   for (const [key, { newValue }] of Object.entries(changes)) {
     if (!key.startsWith('vol_')) continue;
     const tabId = parseInt(key.slice(4));
-    if (!newValue) { delete states[tabId]; continue; }
+    if (!newValue) { delete states[tabId]; touchedMute = true; continue; }
     states[tabId] = newValue;
+    touchedMute = true;
     const card = document.querySelector(`.tab-card[data-tab-id="${tabId}"]`);
     if (!card) continue;
     const input = card.querySelector('.range-input');
@@ -93,6 +95,12 @@ function onStorageChanged(changes, area) {
       syncSliderUI(card, pct); // updates knob position + percentage label
     }
     syncMuteUI(card, newValue.muted);
+  }
+  // A change from outside the popup (native mute, hotkey, another popup) can
+  // flip whether every visible tab is muted — keep the Mute-All button in sync too.
+  if (touchedMute) {
+    const tabs = visibleTabs();
+    updateMuteAllBtn(tabs.length > 0 && tabs.every(isMuted));
   }
 }
 

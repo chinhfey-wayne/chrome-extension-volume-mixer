@@ -25,10 +25,22 @@ function execInTab(tabId, func, args = []) {
     () => { void chrome.runtime.lastError; });
 }
 
+// DIAGNOSTIC: chrome.tabs.update errors were silently swallowed everywhere,
+// so a failing native mute call left no trace. Logging until root-caused.
+function nativeMute(tabId, muted) {
+  chrome.tabs.update(tabId, { muted }, () => {
+    if (chrome.runtime.lastError) {
+      console.warn('[VolumeControl] tabs.update({muted}) failed', { tabId, muted, error: chrome.runtime.lastError.message });
+    } else {
+      console.log('[VolumeControl] tabs.update({muted}) ok', { tabId, muted });
+    }
+  });
+}
+
 // Apply both facets of a tab's state — used for explicit user-driven writes
 // (slider/mute/hotkey), not for reassert() (see below), so it never races itself.
 function applyState(tabId, state) {
-  chrome.tabs.update(tabId, { muted: state.muted }, () => { void chrome.runtime.lastError; });
+  nativeMute(tabId, state.muted);
   execInTab(tabId, setVolumeInPage, [state.volume]);
 }
 
@@ -80,7 +92,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     getState(tabId).then(s => {
       const next = { ...s, muted };
       setState(tabId, next).then(() => {
-        chrome.tabs.update(tabId, { muted }, () => { void chrome.runtime.lastError; });
+        nativeMute(tabId, muted);
         sendResponse({ ok: true });
       });
     });
@@ -109,8 +121,12 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   // storage also live-updates an open popup via storage.onChanged.
   if (changeInfo.mutedInfo !== undefined) {
     const real = !!changeInfo.mutedInfo.muted;
+    console.log('[VolumeControl] onUpdated mutedInfo', { tabId, real, reason: changeInfo.mutedInfo.reason });
     getState(tabId).then(s => {
-      if (s.muted !== real) setState(tabId, { ...s, muted: real });
+      if (s.muted !== real) {
+        console.warn('[VolumeControl] adopting real mute over stored state', { tabId, stored: s.muted, real });
+        setState(tabId, { ...s, muted: real });
+      }
     });
   }
 });
@@ -139,7 +155,7 @@ chrome.commands.onCommand.addListener(command => {
     getState(tab.id).then(s => {
       if (command === 'toggle-mute') {
         const next = { ...s, muted: !s.muted };
-        setState(tab.id, next).then(() => chrome.tabs.update(tab.id, { muted: next.muted }, () => { void chrome.runtime.lastError; }));
+        setState(tab.id, next).then(() => nativeMute(tab.id, next.muted));
       } else if (command === 'volume-up' || command === 'volume-down') {
         const delta = command === 'volume-up' ? STEP : -STEP;
         const volume = Math.max(0, Math.min(MAX, Math.round((s.volume + delta) * 100) / 100));

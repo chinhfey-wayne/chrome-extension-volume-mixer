@@ -72,6 +72,7 @@ function cancelHud() {
 
 // Reflect external { volume, muted } changes on the matching card in real time.
 function onStorageChanged(changes, area) {
+  console.log('[VolumeControl popup] onStorageChanged fired', { area, keys: Object.keys(changes) });
   // Each shortcut pings session storage → (re)start the HUD close timer.
   if (area === 'session') {
     if (changes.hudPing) startHud();
@@ -82,6 +83,7 @@ function onStorageChanged(changes, area) {
   for (const [key, { newValue }] of Object.entries(changes)) {
     if (!key.startsWith('vol_')) continue;
     const tabId = parseInt(key.slice(4));
+    console.log('[VolumeControl popup] applying', { tabId, newValue });
     if (!newValue) delete states[tabId]; else states[tabId] = newValue;
     touched = true;
   }

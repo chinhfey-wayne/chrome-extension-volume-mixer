@@ -12,6 +12,19 @@ function setState(tabId, state) {
   return new Promise(resolve => chrome.storage.local.set({ [KEY(tabId)]: state }, resolve));
 }
 
+// Every read-modify-write of a tab's state (getState().then(setState)) must run
+// to completion before the next one starts, or two events landing close
+// together (a native mute toggle racing a popup click, or two native toggles
+// back to back) can read stale data and lose or reorder a write. Serialize
+// per tab so that can never happen.
+const tabLocks = new Map();
+function withTabLock(tabId, fn) {
+  const prev = tabLocks.get(tabId) || Promise.resolve();
+  const next = prev.then(fn, fn).catch(() => {});
+  tabLocks.set(tabId, next);
+  return next;
+}
+
 // Push volume into the page. injected.js (MAIN world, document_start) always
 // runs before this can fire, so __vmApply is always present by the time we call it.
 const setVolumeInPage = (vol) => {
@@ -72,10 +85,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
   if (msg.type === 'setTabVolume') {
     const { tabId, volume } = msg;
-    getState(tabId).then(s => {
+    withTabLock(tabId, () => getState(tabId).then(s => {
       const next = { ...s, volume };
-      setState(tabId, next).then(() => { applyState(tabId, next); sendResponse({ ok: true }); });
-    });
+      return setState(tabId, next).then(() => { applyState(tabId, next); sendResponse({ ok: true }); });
+    }));
     return true;
   }
   if (msg.type === 'setTabState') {
@@ -83,19 +96,19 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     // that happens when volume and mute are sent as two separate messages.
     const { tabId, volume, muted } = msg;
     const next = { volume, muted };
-    setState(tabId, next).then(() => { applyState(tabId, next); sendResponse({ ok: true }); });
+    withTabLock(tabId, () => setState(tabId, next).then(() => { applyState(tabId, next); sendResponse({ ok: true }); }));
     return true;
   }
 
   if (msg.type === 'setTabMuted') {
     const { tabId, muted } = msg;
-    getState(tabId).then(s => {
+    withTabLock(tabId, () => getState(tabId).then(s => {
       const next = { ...s, muted };
-      setState(tabId, next).then(() => {
+      return setState(tabId, next).then(() => {
         nativeMute(tabId, muted);
         sendResponse({ ok: true });
       });
-    });
+    }));
     return true;
   }
   if (msg.type === 'pauseTab') { execInTab(msg.tabId, pauseInPage); sendResponse({ ok: true }); return false; }
@@ -122,12 +135,12 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   if (changeInfo.mutedInfo !== undefined) {
     const real = !!changeInfo.mutedInfo.muted;
     console.log('[VolumeControl] onUpdated mutedInfo', { tabId, real, reason: changeInfo.mutedInfo.reason });
-    getState(tabId).then(s => {
+    withTabLock(tabId, () => getState(tabId).then(s => {
       if (s.muted !== real) {
         console.warn('[VolumeControl] adopting real mute over stored state', { tabId, stored: s.muted, real });
-        setState(tabId, { ...s, muted: real });
+        return setState(tabId, { ...s, muted: real });
       }
-    });
+    }));
   }
 });
 chrome.tabs.onActivated.addListener(({ tabId }) => reassert(tabId));
@@ -137,7 +150,10 @@ chrome.windows.onFocusChanged.addListener(windowId => {
 });
 
 // ---- Per-tab lifetime: forget on close ----
-chrome.tabs.onRemoved.addListener(tabId => chrome.storage.local.remove(KEY(tabId)));
+chrome.tabs.onRemoved.addListener(tabId => {
+  chrome.storage.local.remove(KEY(tabId));
+  tabLocks.delete(tabId);
+});
 
 // ---- Global hotkeys ----
 const MAX = 1.5, STEP = 0.1;
@@ -152,16 +168,16 @@ chrome.commands.onCommand.addListener(command => {
   chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
     const tab = tabs[0];
     if (!tab) return;
-    getState(tab.id).then(s => {
+    withTabLock(tab.id, () => getState(tab.id).then(s => {
       if (command === 'toggle-mute') {
         const next = { ...s, muted: !s.muted };
-        setState(tab.id, next).then(() => nativeMute(tab.id, next.muted));
+        return setState(tab.id, next).then(() => nativeMute(tab.id, next.muted));
       } else if (command === 'volume-up' || command === 'volume-down') {
         const delta = command === 'volume-up' ? STEP : -STEP;
         const volume = Math.max(0, Math.min(MAX, Math.round((s.volume + delta) * 100) / 100));
         const next = { ...s, volume };
-        setState(tab.id, next).then(() => applyState(tab.id, next));
+        return setState(tab.id, next).then(() => applyState(tab.id, next));
       }
-    });
+    }));
   });
 });

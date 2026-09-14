@@ -12,11 +12,10 @@ function setState(tabId, state) {
   return new Promise(resolve => chrome.storage.local.set({ [KEY(tabId)]: state }, resolve));
 }
 
-// Push volume into the page. Prefer the injected __vmApply; fall back to raw scaling.
+// Push volume into the page. injected.js (MAIN world, document_start) always
+// runs before this can fire, so __vmApply is always present by the time we call it.
 const setVolumeInPage = (vol) => {
-  if (typeof window.__vmApply === 'function') { window.__vmApply(vol); return; }
-  if (window.__vmGains) window.__vmGains.forEach(g => { try { g.gain.value = vol; } catch (_) {} });
-  document.querySelectorAll('audio, video').forEach(el => { try { el.volume = Math.min(1, vol); } catch (_) {} });
+  if (typeof window.__vmApply === 'function') window.__vmApply(vol);
 };
 const pauseInPage = () => document.querySelectorAll('audio, video').forEach(el => { try { el.pause(); } catch (_) {} });
 const playInPage  = () => document.querySelectorAll('audio, video').forEach(el => { try { el.play().catch(() => {}); } catch (_) {} });
@@ -26,7 +25,8 @@ function execInTab(tabId, func, args = []) {
     () => { void chrome.runtime.lastError; });
 }
 
-// Apply both facets of a tab's state. Idempotent — safe to re-run on navigation.
+// Apply both facets of a tab's state — used for explicit user-driven writes
+// (slider/mute/hotkey), not for reassert() (see below), so it never races itself.
 function applyState(tabId, state) {
   chrome.tabs.update(tabId, { muted: state.muted }, () => { void chrome.runtime.lastError; });
   execInTab(tabId, setVolumeInPage, [state.volume]);
@@ -90,11 +90,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'playTab')  { execInTab(msg.tabId, playInPage);  sendResponse({ ok: true }); return false; }
 });
 
-// ---- Re-assert on navigation / audible change (volume + mute are idempotent) ----
+// ---- Re-assert volume on navigation / audible change ----
+// Mute is Chrome-native and survives navigation on its own — re-pushing it here
+// on every 'audible' flip (which fires constantly on a playing tab) raced against
+// user-driven mute/unmute writes and could flip mute back on. Volume is page-level
+// (reset by a fresh injected.js on navigation), so only that needs reapplying.
 function reassert(tabId) {
   chrome.storage.local.get(KEY(tabId), r => {
     const s = r[KEY(tabId)];
-    if (s) applyState(tabId, s);
+    if (s) execInTab(tabId, setVolumeInPage, [s.volume]);
   });
 }
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {

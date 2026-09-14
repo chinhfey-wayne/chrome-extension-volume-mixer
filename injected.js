@@ -137,11 +137,10 @@
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
 
-  // Message bridge from content.js.
+  // Message bridge from content.js — only carries the on-load volume pull;
+  // pause/play run entirely in background.js via direct MAIN-world injection.
   window.addEventListener('message', e => {
     if (!e.data || !e.data.__vm__ || e.source !== window) return;
     if (e.data.action === 'setVolume') applyVolume(e.data.volume);
-    if (e.data.action === 'pause') document.querySelectorAll('audio, video').forEach(el => { try { el.pause(); } catch (_) {} });
-    if (e.data.action === 'play')  document.querySelectorAll('audio, video').forEach(el => { try { el.play().catch(() => {}); } catch (_) {} });
   });
 })();

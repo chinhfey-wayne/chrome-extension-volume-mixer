@@ -78,30 +78,16 @@ function onStorageChanged(changes, area) {
     return;
   }
   if (area !== 'local') return;
-  let touchedMute = false;
+  let touched = false;
   for (const [key, { newValue }] of Object.entries(changes)) {
     if (!key.startsWith('vol_')) continue;
     const tabId = parseInt(key.slice(4));
-    if (!newValue) { delete states[tabId]; touchedMute = true; continue; }
-    states[tabId] = newValue;
-    touchedMute = true;
-    const card = document.querySelector(`.tab-card[data-tab-id="${tabId}"]`);
-    if (!card) continue;
-    const input = card.querySelector('.range-input');
-    if (input !== document.activeElement) {
-      const pct = Math.round(newValue.volume * 100);
-      input.value = pct;
-      if (pct > 0) input.dataset.prevVol = pct;
-      syncSliderUI(card, pct); // updates knob position + percentage label
-    }
-    syncMuteUI(card, newValue.muted);
+    if (!newValue) delete states[tabId]; else states[tabId] = newValue;
+    touched = true;
   }
-  // A change from outside the popup (native mute, hotkey, another popup) can
-  // flip whether every visible tab is muted — keep the Mute-All button in sync too.
-  if (touchedMute) {
-    const tabs = visibleTabs();
-    updateMuteAllBtn(tabs.length > 0 && tabs.every(isMuted));
-  }
+  // render() re-derives every card (skipping one whose slider is being dragged)
+  // plus the Mute-All button from the states we just updated.
+  if (touched) render();
 }
 
 async function refreshTabsLive() {
@@ -143,8 +129,13 @@ function sendState(tabId, volume, muted) {
   states[tabId] = { volume, muted };
   chrome.runtime.sendMessage({ type: 'setTabState', tabId, volume, muted });
 }
+// Storage (states) is kept authoritative by background.js's mutedInfo-adopt
+// listener — do NOT OR this with tab.mutedInfo from the cached `allTabs`
+// snapshot. That snapshot only refreshes on specific tab events and can lag;
+// OR-ing with a stale "true" can only ever wrongly force muted, never
+// incorrectly clear it — which is exactly the stuck-muted bug this caused.
 function isMuted(tab) {
-  return !!(states[tab.id]?.muted || tab.mutedInfo?.muted);
+  return !!states[tab.id]?.muted;
 }
 
 function visibleTabs() {
@@ -214,10 +205,9 @@ function render() {
   updateMuteAllBtn(tabs.length > 0 && tabs.every(isMuted));
 }
 
-// A tab's effective state, folding in Chrome's real native mute.
 function stateWithMuted(tab) {
   const s = states[tab.id] ?? { volume: 1.0, muted: false };
-  return { volume: s.volume, muted: s.muted || !!tab.mutedInfo?.muted };
+  return { volume: s.volume, muted: s.muted };
 }
 
 // Update an existing card in place — never during an active slider drag.
@@ -391,11 +381,7 @@ function onMute(e) {
   const btn = e.currentTarget;
   const tabId = parseInt(btn.dataset.tabId);
   const card = btn.closest('.tab-card');
-  // Toggle relative to the REAL current mute (stored intent OR Chrome's tab state),
-  // so unmuting an externally-muted tab works correctly.
-  const tab = allTabs.find(t => t.id === tabId);
-  const currentlyMuted = !!(stateFor(tabId).muted || tab?.mutedInfo?.muted);
-  const muted = !currentlyMuted;
+  const muted = !stateFor(tabId).muted;
   sendMuted(tabId, muted);
   syncMuteUI(card, muted);
 }

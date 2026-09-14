@@ -38,14 +38,10 @@ function execInTab(tabId, func, args = []) {
     () => { void chrome.runtime.lastError; });
 }
 
-// DIAGNOSTIC: chrome.tabs.update errors were silently swallowed everywhere,
-// so a failing native mute call left no trace. Logging until root-caused.
 function nativeMute(tabId, muted) {
   chrome.tabs.update(tabId, { muted }, () => {
     if (chrome.runtime.lastError) {
       console.warn('[VolumeControl] tabs.update({muted}) failed', { tabId, muted, error: chrome.runtime.lastError.message });
-    } else {
-      console.log('[VolumeControl] tabs.update({muted}) ok', { tabId, muted });
     }
   });
 }
@@ -134,12 +130,8 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   // storage also live-updates an open popup via storage.onChanged.
   if (changeInfo.mutedInfo !== undefined) {
     const real = !!changeInfo.mutedInfo.muted;
-    console.log('[VolumeControl] onUpdated mutedInfo', { tabId, real, reason: changeInfo.mutedInfo.reason });
     withTabLock(tabId, () => getState(tabId).then(s => {
-      if (s.muted !== real) {
-        console.warn('[VolumeControl] adopting real mute over stored state', { tabId, stored: s.muted, real });
-        return setState(tabId, { ...s, muted: real });
-      }
+      if (s.muted !== real) return setState(tabId, { ...s, muted: real });
     }));
   }
 });

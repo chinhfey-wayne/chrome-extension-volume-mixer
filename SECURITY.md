@@ -24,7 +24,7 @@ I will respond within **72 hours** and aim to release a patch within **7 days** 
 
 ## Security Design
 
-Volume Controller is designed with security as a core principle:
+Modulate is designed with security as a core principle:
 
 - **No remote code execution** — zero external scripts loaded at runtime
 - **No network requests** — the extension never makes outbound HTTP calls

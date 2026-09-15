@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/banner.png" alt="Volume Controller — Per-Tab Volume Mixer for Chrome" width="100%">
+<img src="assets/banner-modulate.png" alt="Modulate — Per-Tab Volume Mixer for Chrome" width="100%">
 
 <br><br>
 
@@ -10,7 +10,7 @@
 [![No Data Collected](https://img.shields.io/badge/Privacy-No%20Data%20Collected-8b5cf6?style=flat-square&logo=shield&logoColor=white)](https://github.com/ChinhFey/chrome-extension-volume-mixer#privacy--security)
 [![Stars](https://img.shields.io/github/stars/ChinhFey/chrome-extension-volume-mixer?style=flat-square&color=facc15)](https://github.com/ChinhFey/chrome-extension-volume-mixer/stargazers)
 
-### The premium per-tab volume mixer for Chrome — control every tab's audio independently with a beautiful liquid glass UI.
+### Every tab, its own volume — control every tab's audio independently with a beautiful liquid glass UI.
 
 [Install Guide](#-installation) · [Features](#-features) · [How It Works](#-how-it-works) · [Privacy](#-privacy--security) · [Contributing](#-contributing)
 
@@ -20,7 +20,7 @@
 
 ## ✨ Overview
 
-**Volume Controller** is a free, open-source Chrome Extension that gives you a dedicated **volume mixer** for every browser tab — just like Windows Volume Mixer, but built natively into Chrome.
+**Modulate** is a free, open-source Chrome Extension that gives you a dedicated **volume mixer** for every browser tab — just like Windows Volume Mixer, but built natively into Chrome.
 
 Adjust, mute, boost, or pause audio on any tab — YouTube, Spotify Web, Twitch, podcasts, video calls — all from one elegant glassmorphism popup. No account. No tracking. No remote code. 100% local.
 
@@ -30,14 +30,14 @@ Adjust, mute, boost, or pause audio on any tab — YouTube, Spotify Web, Twitch,
 
 ## 📸 Screenshots
 
-<img src="assets/showcase.png" alt="Volume Controller UI — side by side comparison" width="100%">
+<img src="assets/showcase.png" alt="Modulate UI — side by side comparison" width="100%">
 
 <br>
 
 <table>
   <tr>
-    <td><img src="assets/demo1.png" alt="Volume Controller on YouTube — single tab" width="100%"></td>
-    <td><img src="assets/demo2.png" alt="Volume Controller on YouTube — multiple tabs" width="100%"></td>
+    <td><img src="assets/demo1.png" alt="Modulate on YouTube — single tab" width="100%"></td>
+    <td><img src="assets/demo2.png" alt="Modulate on YouTube — multiple tabs" width="100%"></td>
   </tr>
   <tr>
     <td align="center"><em>Multiple tabs — independent sliders</em></td>
@@ -89,19 +89,19 @@ Or [Download ZIP →](https://github.com/ChinhFey/chrome-extension-volume-mixer/
 ### Step 3 — Load the Extension
 
 1. Select the `chrome-extension-volume-mixer` folder
-2. The **Volume Controller** icon appears in your toolbar
+2. The **Modulate** icon appears in your toolbar
 
 ### Step 4 — Use It
 
 1. Open any tab playing audio (YouTube, Spotify, Twitch…)
-2. Click the **Volume Controller** icon in the Chrome toolbar
+2. Click the **Modulate** icon in the Chrome toolbar
 3. Use the sliders to mix your audio
 
 ---
 
 ## 🛠 How It Works
 
-Volume Controller uses the **Web Audio API** to intercept and control audio at the browser tab level — without modifying websites or requiring any server.
+Modulate uses the **Web Audio API** to intercept and control audio at the browser tab level — without modifying websites or requiring any server.
 
 ```
 [Chrome Tab Audio]
@@ -141,7 +141,7 @@ Chrome MV3 content scripts run in an isolated world by default. To control actua
 
 ## 🔒 Privacy & Security
 
-Volume Controller is built with **zero-trust privacy** principles:
+Modulate is built with **zero-trust privacy** principles:
 
 | Claim | Details |
 |---|---|
@@ -219,7 +219,7 @@ Please keep PRs focused — one feature or fix per PR.
 
 ## ⭐ Support
 
-If Volume Controller saved your sanity during a late-night YouTube session, consider:
+If Modulate saved your sanity during a late-night YouTube session, consider:
 
 - ⭐ **Starring this repo** — it helps others discover it
 - 🐛 **Reporting bugs** via [Issues](https://github.com/ChinhFey/chrome-extension-volume-mixer/issues)
@@ -256,7 +256,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 
 Built with ❤️ by [ChinhFey](https://github.com/ChinhFey)
 
-**Volume Controller** — the last volume extension you'll ever need.
+**Modulate** — the last volume extension you'll ever need.
 
 *Keywords: chrome extension volume control, per tab volume mixer, chrome tab audio control, browser volume mixer, tab volume controller, chrome audio mixer, youtube volume control extension, web audio api chrome extension, volume booster chrome, mute tab chrome, chrome sound mixer, audio control chrome extension, tab audio manager, chrome volume per tab, browser audio mixer*
 

@@ -1,6 +1,6 @@
 # Chrome Web Store — Submission Checklist
 
-Everything needed to publish Volume Control. Work top to bottom.
+Everything needed to publish Modulate. Work top to bottom.
 
 ## 1. Host the privacy policy (required)
 Google requires a public privacy-policy URL because the extension uses broad host

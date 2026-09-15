@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Volume Control",
+  "name": "Modulate",
   "version": "1.0.1",
-  "description": "Per-tab volume control — mute, duck, or boost any tab",
+  "description": "Every tab, its own volume. Mute, duck, or boost any tab up to 150%.",
   "permissions": ["tabs", "storage", "scripting"],
   "host_permissions": ["<all_urls>"],
   "background": {
@@ -16,7 +16,7 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Volume Control",
+    "default_title": "Modulate",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",

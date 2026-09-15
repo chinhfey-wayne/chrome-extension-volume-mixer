@@ -1,12 +1,12 @@
-# Chrome Web Store Listing — Volume Control
+# Chrome Web Store Listing — Modulate
 
 Copy/paste these fields into the Web Store developer dashboard.
 
 ## Name
-Volume Control — Per-Tab Volume Mixer
+Modulate — Per-Tab Volume Mixer
 
 ## Summary (short description, max 132 chars)
-Control volume for each browser tab. Mute, duck, or boost any tab up to 150% — with a clean mixer, hotkeys, and per-tab memory.
+Every tab, its own volume. Mute, duck, or boost any tab up to 150% — with a clean mixer, hotkeys, and per-tab memory.
 
 ## Category
 Tools  (secondary: Accessibility)
@@ -15,11 +15,11 @@ Tools  (secondary: Accessibility)
 English
 
 ## Single purpose (required by Google)
-Volume Control lets the user set an independent volume level and mute state for each browser tab, and boost a tab's volume above 100%.
+Modulate lets the user set an independent volume level and mute state for each browser tab, and boost a tab's volume above 100%.
 
 ## Detailed description
 
-Take control of sound in your browser. Volume Control gives every tab its own
+Take control of sound in your browser. Modulate gives every tab its own
 volume slider — mute the noisy one, quiet a background video, or boost a too-soft
 tab up to 150%.
 

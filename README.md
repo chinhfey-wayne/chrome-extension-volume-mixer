@@ -7,8 +7,8 @@
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-4b8eff?style=flat-square&logo=googlechrome&logoColor=white)](https://developer.chrome.com/docs/extensions/mv3/intro/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-22c55e?style=flat-square)](LICENSE)
 [![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-f59e0b?style=flat-square&logo=googlechrome&logoColor=white)](https://developer.chrome.com/docs/extensions/)
-[![No Data Collected](https://img.shields.io/badge/Privacy-No%20Data%20Collected-8b5cf6?style=flat-square&logo=shield&logoColor=white)](https://github.com/ChinhFey/chrome-extension-volume-mixer#privacy--security)
-[![Stars](https://img.shields.io/github/stars/ChinhFey/chrome-extension-volume-mixer?style=flat-square&color=facc15)](https://github.com/ChinhFey/chrome-extension-volume-mixer/stargazers)
+[![No Data Collected](https://img.shields.io/badge/Privacy-No%20Data%20Collected-8b5cf6?style=flat-square&logo=shield&logoColor=white)](https://github.com/chinhfey-wayne/modulate#privacy--security)
+[![Stars](https://img.shields.io/github/stars/chinhfey-wayne/modulate?style=flat-square&color=facc15)](https://github.com/chinhfey-wayne/modulate/stargazers)
 
 ### Every tab, its own volume — control every tab's audio independently with a beautiful liquid glass UI.
 
@@ -73,10 +73,10 @@ Adjust, mute, boost, or pause audio on any tab — YouTube, Spotify Web, Twitch,
 ### Step 1 — Download
 
 ```bash
-git clone https://github.com/ChinhFey/chrome-extension-volume-mixer.git
+git clone https://github.com/chinhfey-wayne/modulate.git
 ```
 
-Or [Download ZIP →](https://github.com/ChinhFey/chrome-extension-volume-mixer/archive/refs/heads/main.zip) and unzip it.
+Or [Download ZIP →](https://github.com/chinhfey-wayne/modulate/archive/refs/heads/main.zip) and unzip it.
 
 ### Step 2 — Enable Developer Mode
 
@@ -222,8 +222,8 @@ Please keep PRs focused — one feature or fix per PR.
 If Modulate saved your sanity during a late-night YouTube session, consider:
 
 - ⭐ **Starring this repo** — it helps others discover it
-- 🐛 **Reporting bugs** via [Issues](https://github.com/ChinhFey/chrome-extension-volume-mixer/issues)
-- 💡 **Suggesting features** via [Discussions](https://github.com/ChinhFey/chrome-extension-volume-mixer/discussions)
+- 🐛 **Reporting bugs** via [Issues](https://github.com/chinhfey-wayne/modulate/issues)
+- 💡 **Suggesting features** via [Discussions](https://github.com/chinhfey-wayne/modulate/discussions)
 - 📢 **Sharing it** with anyone who needs per-tab volume control
 
 ---

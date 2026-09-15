@@ -12,7 +12,7 @@ If you discover a security vulnerability, **please do NOT open a public GitHub i
 
 Report it privately via email or GitHub's private vulnerability reporting:
 
-- **GitHub:** [Report a vulnerability](https://github.com/ChinhFey/chrome-extension-volume-mixer/security/advisories/new)
+- **GitHub:** [Report a vulnerability](https://github.com/chinhfey-wayne/modulate/security/advisories/new)
 
 Please include:
 - Description of the vulnerability
